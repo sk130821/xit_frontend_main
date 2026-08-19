@@ -1,4 +1,20 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+function resolveApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const { hostname, protocol } = window.location;
+
+    if (hostname === 'xit.virajnandanigold.com') {
+      return 'https://xit.back.virajnandanigold.com/api';
+    }
+
+    if (hostname === 'xit.back.virajnandanigold.com') {
+      return `${protocol}//${hostname}/api`;
+    }
+  }
+
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+}
+
+const API_URL = resolveApiUrl();
 
 const USER_TOKEN_KEY = 'xit_token';
 const ADMIN_TOKEN_KEY = 'xit_admin_token';
