@@ -193,7 +193,7 @@ export default function AuthPage() {
             </div>
           )}
           <div className="mt-6 text-center">
-            <Link to="/home" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-xit-blue transition-colors"><Home className="w-3.5 h-3.5" />Visit website</Link>
+            <Link to="/" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-xit-blue transition-colors"><Home className="w-3.5 h-3.5" />Visit website</Link>
           </div>
         </div>
         <p className="text-center text-xit-gold/40 text-xs mt-6">© 2026 XIT Token (XIT). All rights reserved.</p>

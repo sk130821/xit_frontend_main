@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -25,9 +26,20 @@
   background: #4b5563;
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: #0a0e17;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 input[type="number"]::-webkit-inner-spin-button,
@@ -42,11 +54,212 @@ input[type="number"] {
 
 .bg-grid {
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 191, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(243, 186, 47, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(243, 186, 47, 0.06) 1px, transparent 1px);
   background-size: 60px 60px;
 }
-
 .bg-auth {
   background: #000000;
+}
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.12; }
+  50% { transform: translateY(-14px) rotate(6deg); opacity: 0.22; }
+}
+
+@keyframes hero-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.4); }
+}
+
+@keyframes hero-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes hero-glow {
+  0%, 100% { text-shadow: 0 0 24px rgba(243, 186, 47, 0.25); }
+  50% { text-shadow: 0 0 40px rgba(243, 186, 47, 0.55); }
+}
+
+@keyframes hero-logo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+
+@keyframes hero-glow-pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.08); }
+}
+
+@keyframes hero-ring {
+  0%, 100% { transform: scale(1); opacity: 0.35; }
+  50% { transform: scale(1.06); opacity: 0.6; }
+}
+
+@keyframes hero-ring-slow {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.2; }
+  50% { transform: scale(1.04) rotate(180deg); opacity: 0.4; }
+}
+
+@keyframes hero-badge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-hero-float {
+  animation: hero-float 6s ease-in-out infinite;
+}
+
+.animate-hero-twinkle {
+  animation: hero-twinkle 2.8s ease-in-out infinite;
+}
+
+.animate-hero-fade-up {
+  animation: hero-fade-up 0.8s ease-out both;
+}
+
+.animate-hero-glow {
+  animation: hero-glow 3s ease-in-out infinite;
+}
+
+.animate-hero-logo-float {
+  animation: hero-logo-float 5s ease-in-out infinite;
+}
+
+.animate-hero-glow-pulse {
+  animation: hero-glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-hero-ring {
+  animation: hero-ring 5s ease-in-out infinite;
+}
+
+.animate-hero-ring-slow {
+  animation: hero-ring-slow 18s linear infinite;
+}
+
+.animate-hero-badge {
+  animation: hero-badge 3.6s ease-in-out infinite;
+}
+
+@keyframes about-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  50% { transform: translate(24px, -18px) scale(1.12); opacity: 1; }
+}
+
+@keyframes about-orb-slow {
+  0%, 100% { transform: translate(0, 0); opacity: 0.55; }
+  50% { transform: translate(-30px, 16px); opacity: 0.9; }
+}
+
+@keyframes about-node {
+  0%, 100% { transform: scale(1); opacity: 0.45; }
+  50% { transform: scale(1.8); opacity: 1; }
+}
+
+@keyframes about-fade {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes about-spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes about-shimmer {
+  0% { transform: translateX(-40%); opacity: 0.3; }
+  50% { transform: translateX(40%); opacity: 1; }
+  100% { transform: translateX(-40%); opacity: 0.3; }
+}
+
+.about-hex-grid {
+  background-image:
+    radial-gradient(rgba(243, 186, 47, 0.14) 1px, transparent 1px);
+  background-size: 28px 28px;
+  animation: about-grid-move 22s linear infinite;
+  mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+}
+
+@keyframes about-grid-move {
+  from { background-position: 0 0; }
+  to { background-position: 28px 28px; }
+}
+
+.animate-about-orb {
+  animation: about-orb 8s ease-in-out infinite;
+}
+
+.animate-about-orb-slow {
+  animation: about-orb-slow 12s ease-in-out infinite;
+}
+
+.animate-about-node {
+  animation: about-node 3.2s ease-in-out infinite;
+}
+
+.animate-about-fade {
+  animation: about-fade 0.7s ease-out both;
+}
+
+.animate-about-spin-slow {
+  animation: about-spin-slow 14s linear infinite;
+}
+
+.animate-about-shimmer {
+  animation: about-shimmer 4s ease-in-out infinite;
+}
+
+@keyframes problem-bg-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-problem-bg {
+  animation: problem-bg-scroll 28s linear infinite;
+}
+
+@keyframes roadmap-globe {
+  0% { transform: translate(0, 0) rotate(-3deg) scale(1); }
+  25% { transform: translate(14px, -18px) rotate(4deg) scale(1.04); }
+  50% { transform: translate(-8px, -28px) rotate(-2deg) scale(1.06); }
+  75% { transform: translate(-16px, -10px) rotate(3deg) scale(1.03); }
+  100% { transform: translate(0, 0) rotate(-3deg) scale(1); }
+}
+
+.animate-roadmap-globe {
+  animation: roadmap-globe 10s ease-in-out infinite;
+}
+
+@keyframes roadmap-earth {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-roadmap-earth {
+  animation: roadmap-earth 8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-float,
+  .animate-hero-twinkle,
+  .animate-hero-fade-up,
+  .animate-hero-glow,
+  .animate-hero-logo-float,
+  .animate-hero-glow-pulse,
+  .animate-hero-ring,
+  .animate-hero-ring-slow,
+  .animate-hero-badge,
+  .animate-about-orb,
+  .animate-about-orb-slow,
+  .animate-about-node,
+  .animate-about-fade,
+  .animate-about-spin-slow,
+  .animate-about-shimmer,
+  .animate-problem-bg,
+  .animate-roadmap-globe,
+  .animate-roadmap-earth,
+  .about-hex-grid {
+    animation: none !important;
+  }
 }

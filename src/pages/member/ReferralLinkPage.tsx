@@ -9,7 +9,7 @@ export default function ReferralLinkPage() {
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const canSponsor = !!user?.is_active;
-  const referralLink = `${window.location.origin}/?ref=${user?.referral_code}`;
+  const referralLink = `${window.location.origin}/login?ref=${user?.referral_code}`;
 
   const copyLink = () => {
     if (!canSponsor) return;

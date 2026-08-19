@@ -29,16 +29,16 @@ import AdminPayoutHistory from '@/pages/admin/AdminPayoutHistory';
 import AdminTradeHistory from '@/pages/admin/AdminTradeHistory';
 import AdminBusinessReport from '@/pages/admin/AdminBusinessReport';
 import HomePage from '@/pages/public/HomePage';
-import AboutPage from '@/pages/public/AboutPage';
+
 import PlansPage from '@/pages/public/PlansPage';
-import CompensationPage from '@/pages/public/CompensationPage';
-import FAQPage from '@/pages/public/FAQPage';
-import ContactPage from '@/pages/public/ContactPage';
+
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
+import TermsAndConditions from './pages/public/TermsAndConditions';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (!user) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -76,23 +76,29 @@ function PublicPage({ children }: { children: React.ReactNode }) {
   return <PublicLayout>{children}</PublicLayout>;
 }
 
-function LoginRedirect() {
+function HomePageRoute() {
   const [searchParams] = useSearchParams();
-  const query = searchParams.toString();
-  return <Navigate to={query ? `/?${query}` : '/'} replace />;
+  const ref = searchParams.get('ref');
+  if (ref) {
+    const query = searchParams.toString();
+    return <Navigate to={`/login?${query}`} replace />;
+  }
+  return <PublicPage><HomePage /></PublicPage>;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<AuthRoute><AuthPage /></AuthRoute>} />
-      <Route path="/login" element={<LoginRedirect />} />
-      <Route path="/home" element={<PublicPage><HomePage /></PublicPage>} />
-      <Route path="/about" element={<PublicPage><AboutPage /></PublicPage>} />
+      <Route path="/" element={<HomePageRoute />} />
+      <Route path="/login" element={<AuthRoute><AuthPage /></AuthRoute>} />
       <Route path="/plans" element={<PublicPage><PlansPage /></PublicPage>} />
-      <Route path="/compensation" element={<PublicPage><CompensationPage /></PublicPage>} />
-      <Route path="/faq" element={<PublicPage><FAQPage /></PublicPage>} />
-      <Route path="/contact" element={<PublicPage><ContactPage /></PublicPage>} />
+      <Route path="/about" element={<Navigate to="/#about" replace />} />
+      <Route path="/plans" element={<Navigate to="/#whitepaper" replace />} />
+      <Route path="/compensation" element={<Navigate to="/#compensation" replace />} />
+      <Route path="/faq" element={<Navigate to="/#faq" replace />} />
+      <Route path="/contact" element={<Navigate to="/#contact" replace />} />
+      <Route path="/privacy-policy" element={<PublicPage><PrivacyPolicy /></PublicPage>} />
+      <Route path="/terms" element={<PublicPage><TermsAndConditions /></PublicPage>} />
 
       <Route path="/admin/login" element={<AdminAuthRoute><AdminLoginPage /></AdminAuthRoute>} />
 

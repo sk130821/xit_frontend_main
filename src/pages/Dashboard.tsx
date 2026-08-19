@@ -59,7 +59,7 @@ export default function Dashboard() {
 
   const copyReferralLink = () => {
     if (!user?.is_active) return;
-    const link = `${window.location.origin}/?ref=${user?.referral_code}`;
+    const link = `${window.location.origin}/login?ref=${user?.referral_code}`;
     navigator.clipboard.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

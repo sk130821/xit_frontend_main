@@ -99,7 +99,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {/* Nav sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-3">
           <NavLink
-            to="/home"
+            to="/"
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-orange-400 hover:bg-gray-900/50 mb-3 transition-all"
           >
             <Home className="w-4 h-4" />
