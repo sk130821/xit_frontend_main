@@ -1,0 +1,374 @@
+import { useState } from 'react';
+import {
+  X,
+  User,
+  LogIn,
+  ShieldOff,
+  ShieldCheck,
+  KeyRound,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { api } from '@/lib/api';
+import type { AdminMemberDetail } from '@/types';
+
+function fmtDate(d: string) {
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function fmtDateTime(d: string) {
+  return new Date(d).toLocaleString('en-GB');
+}
+
+function shortWallet(addr: string | null) {
+  if (!addr) return '—';
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+export default function MemberDetailModal({
+  detail,
+  loading,
+  onClose,
+  onRefresh,
+  onMessage,
+}: {
+  detail: AdminMemberDetail | null;
+  loading: boolean;
+  onClose: () => void;
+  onRefresh: () => void;
+  onMessage: (msg: { type: 'success' | 'error'; text: string }) => void;
+}) {
+  const [tab, setTab] = useState<'overview' | 'investments' | 'income' | 'team'>('overview');
+  const [showPassword, setShowPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  if (!detail && !loading) return null;
+
+  const user = detail?.user;
+
+  const handleToggleActivation = async () => {
+    if (!user) return;
+    setActionLoading(true);
+    try {
+      await api.admin.toggleActivation(user.id, !user.is_active);
+      onMessage({ type: 'success', text: `Account ${user.is_active ? 'deactivated' : 'activated'}` });
+      onRefresh();
+    } catch (err: any) {
+      onMessage({ type: 'error', text: err.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleLoginAsMember = async () => {
+    if (!user) return;
+    setActionLoading(true);
+    try {
+      const data: any = await api.admin.loginAsUser(user.id);
+      api.setToken(data.token);
+      window.open('/dashboard', '_blank');
+      onMessage({ type: 'success', text: `Logged in as ${user.username} (new tab)` });
+    } catch (err: any) {
+      onMessage({ type: 'error', text: err.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!user || newPassword.length < 6) {
+      onMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.admin.changePassword(user.id, newPassword);
+      onMessage({ type: 'success', text: 'Password updated successfully' });
+      setPasswordModal(false);
+      setNewPassword('');
+    } catch (err: any) {
+      onMessage({ type: 'error', text: err.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-[#111827] border border-gray-800 rounded-2xl w-full max-w-4xl my-4 shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <User className="w-5 h-5 text-orange-400" />
+            <h2 className="text-lg font-semibold text-white">Member Full Record</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {loading || !user ? (
+          <div className="py-20 text-center">
+            <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mx-auto" />
+          </div>
+        ) : (
+          <>
+            <div className="px-6 py-5 border-b border-gray-800">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">{user.username}</h3>
+                  <p className="text-orange-400 font-mono text-sm mt-0.5">{user.referral_code}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                      user.member_status === 'invested' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-400'
+                    }`}>
+                      {user.member_status === 'invested' ? 'Invested' : 'Not Invested'}
+                    </span>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                      user.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'
+                    }`}>
+                      {user.is_active ? 'Account Active' : 'Account Inactive'}
+                    </span>
+                  </div>
+                  {user.sponsor_name && (
+                    <p className="text-sm text-gray-400 mt-2">
+                      Sponsor: <span className="text-white">{user.sponsor_name}</span>
+                      {user.sponsor_code && <span className="text-orange-400 font-mono ml-1">({user.sponsor_code})</span>}
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <StatBox label="USDT Wallet" value={user.wallet_balance.toFixed(2)} color="text-emerald-400" />
+                  <StatBox label="Free XIT" value={(user.xit_balance ?? 0).toFixed(0)} color="text-orange-400" />
+                  <StatBox label="Total Income" value={user.total_income.toFixed(2)} color="text-cyan-400" />
+                  <StatBox label="Team Size" value={String(user.team_size)} color="text-purple-400" />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button
+                  onClick={handleLoginAsMember}
+                  disabled={actionLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600/20 border border-teal-500/40 text-teal-400 hover:bg-teal-600/30 text-sm font-medium disabled:opacity-50"
+                >
+                  <LogIn className="w-4 h-4" /> Login as Member
+                </button>
+                <button
+                  onClick={handleToggleActivation}
+                  disabled={actionLoading}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
+                    user.is_active
+                      ? 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20'
+                      : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                  }`}
+                >
+                  {user.is_active ? <ShieldOff className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                  {user.is_active ? 'Deactivate Account' : 'Activate Account'}
+                </button>
+                <button
+                  onClick={() => setPasswordModal(true)}
+                  disabled={actionLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
+                >
+                  <KeyRound className="w-4 h-4" /> Change Password
+                </button>
+              </div>
+            </div>
+
+            <div className="px-6 border-b border-gray-800 flex gap-1 overflow-x-auto">
+              {([
+                ['overview', 'Overview'],
+                ['investments', `Investments (${detail.investments.length})`],
+                ['income', `Income (${detail.income.length})`],
+                ['team', `Team (${detail.team.length})`],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setTab(key)}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+                    tab === key ? 'border-orange-400 text-orange-400' : 'border-transparent text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-6 max-h-[50vh] overflow-y-auto">
+              {tab === 'overview' && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Profile</h4>
+                    <dl className="space-y-2 text-sm">
+                      <Row label="Email" value={user.email} />
+                      <Row label="Phone" value={user.phone || '—'} />
+                      <Row label="Wallet" value={user.wallet_address || '—'} mono />
+                      <Row label="Joined" value={fmtDateTime(user.created_at)} />
+                      <Row label="Referral Code" value={user.referral_code} mono accent />
+                    </dl>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Financial Summary</h4>
+                    <dl className="space-y-2 text-sm">
+                      <Row label="Total Investment" value={`${user.total_purchased.toFixed(2)} USDT (${user.buy_tx_count} tx)`} />
+                      <Row label="USDT Wallet" value={`${user.wallet_balance.toFixed(2)} USDT`} accent />
+                      <Row label="Free XIT" value={`${(user.xit_balance ?? 0).toFixed(2)} XIT`} />
+                      <Row label="Invested (Plans)" value={`${user.total_invested.toFixed(2)} XIT`} />
+                      <Row label="Income Total" value={`${user.total_income.toFixed(2)} XIT`} />
+                      <Row label="Total Earned" value={`${user.total_earned.toFixed(2)} XIT`} />
+                      <Row label="Direct Referrals" value={String(user.direct_count)} />
+                    </dl>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'investments' && (
+                detail.investments.length === 0 ? (
+                  <EmptyTab text="No investments yet" />
+                ) : (
+                  <div className="space-y-3">
+                    {detail.investments.map((inv) => (
+                      <div key={inv.id} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-white font-medium capitalize">{inv.plan_type} Plan</p>
+                            <p className="text-xs text-gray-500">{fmtDate(inv.start_date)} → {fmtDate(inv.end_date)}</p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            inv.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-400'
+                          }`}>{inv.status}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 mt-3 text-sm">
+                          <div><p className="text-gray-500 text-xs">Amount</p><p className="text-white">{inv.token_amount} XIT</p></div>
+                          <div><p className="text-gray-500 text-xs">ROI Received</p><p className="text-emerald-400">{inv.roi_received} XIT</p></div>
+                          <div><p className="text-gray-500 text-xs">Total Return</p><p className="text-orange-400">{inv.total_return} XIT</p></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {tab === 'income' && (
+                detail.income.length === 0 ? (
+                  <EmptyTab text="No income records yet" />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-500 border-b border-gray-800">
+                          <th className="text-left py-2 px-2">Type</th>
+                          <th className="text-right py-2 px-2">Amount</th>
+                          <th className="text-left py-2 px-2">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.income.map((tx) => (
+                          <tr key={tx.id} className="border-b border-gray-800/50">
+                            <td className="py-2 px-2 text-gray-300 capitalize">{tx.type.replace(/_/g, ' ')}</td>
+                            <td className="py-2 px-2 text-right text-emerald-400 font-medium">{tx.amount.toFixed(2)} XIT</td>
+                            <td className="py-2 px-2 text-gray-500">{fmtDateTime(tx.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+
+              {tab === 'team' && (
+                detail.team.length === 0 ? (
+                  <EmptyTab text="No team members yet" />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-gray-500 border-b border-gray-800">
+                          <th className="text-left py-2 px-2">Member</th>
+                          <th className="text-center py-2 px-2">Level</th>
+                          <th className="text-right py-2 px-2">USDT</th>
+                          <th className="text-center py-2 px-2">Status</th>
+                          <th className="text-left py-2 px-2">Joined</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.team.map((m) => (
+                          <tr key={m.id} className="border-b border-gray-800/50">
+                            <td className="py-2 px-2">
+                              <p className="text-white">{m.username}</p>
+                              <p className="text-xs text-gray-500">{m.email}</p>
+                            </td>
+                            <td className="py-2 px-2 text-center text-orange-400">L{m.level}</td>
+                            <td className="py-2 px-2 text-right text-emerald-400">{m.total_purchased.toFixed(2)}</td>
+                            <td className="py-2 px-2 text-center">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                m.total_invested > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-400'
+                              }`}>{m.total_invested > 0 ? 'Invested' : 'Not Invested'}</span>
+                            </td>
+                            <td className="py-2 px-2 text-gray-500">{fmtDate(m.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {passwordModal && user && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-[#111827] border border-gray-800 rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-1">Change Password</h3>
+            <p className="text-sm text-gray-400 mb-4">Set new password for {user.username}</p>
+            <div className="relative mb-4">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password (min 6 chars)"
+                className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 pr-12 text-white text-sm outline-none focus:border-amber-500"
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setPasswordModal(false); setNewPassword(''); }} className="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm">Cancel</button>
+              <button onClick={handleChangePassword} disabled={actionLoading || newPassword.length < 6} className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-medium disabled:opacity-50">
+                {actionLoading ? 'Saving...' : 'Save Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatBox({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl px-4 py-3 text-center min-w-[100px]">
+      <p className={`text-lg font-bold ${color}`}>{value}</p>
+      <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+function Row({ label, value, mono, accent }: { label: string; value: string; mono?: boolean; accent?: boolean }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className="text-gray-500">{label}</dt>
+      <dd className={`text-right break-all ${mono ? 'font-mono text-xs' : ''} ${accent ? 'text-orange-400' : 'text-white'}`}>{value}</dd>
+    </div>
+  );
+}
+
+function EmptyTab({ text }: { text: string }) {
+  return <p className="text-center text-gray-500 py-8 text-sm">{text}</p>;
+}
+
+export { shortWallet, fmtDate };
