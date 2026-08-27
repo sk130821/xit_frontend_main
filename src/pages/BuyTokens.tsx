@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShoppingCart,
@@ -18,14 +18,16 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useWallet } from '@/context/WalletContext';
+import { useXitBalances } from '@/hooks/useXitBalances';
 import { sendPayment, shortenAddress } from '@/lib/web3';
 import { PLAN_CONFIG, calcTotalReturn } from '@/lib/constants';
 
-const QUICK_AMOUNTS = [100, 500, 1000, 5000];
+const QUICK_AMOUNTS = [10, 50, 100, 500, 1000];
 
 export default function BuyTokens() {
   const { user, refreshUser } = useAuth();
   const { config, connectedAddress, isBlockchainMode, connect, connecting, refreshConfig } = useWallet();
+  const balances = useXitBalances();
   const [selectedPlan, setSelectedPlan] = useState<'lock' | 'flexible' | null>(null);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,16 +51,28 @@ export default function BuyTokens() {
   };
 
   const tokenAmount = parseFloat(amount) || 0;
-  const minPurchase = parseFloat(settings.min_purchase || '10');
-  const minInvestment = parseFloat(settings.min_investment || '100');
-  const minAmount = Math.max(minPurchase, minInvestment);
+  const minPurchase = parseFloat(settings.min_purchase || '1');
+  const flexibleMin = parseFloat(settings.flexible_min_tokens || '100');
+  const minAmount = minPurchase;
   const minReferral = parseFloat(settings.min_referral_purchase || '100');
   const referralPercent = parseFloat(settings.referral_bonus_percent || '5');
-  const referralBonus = tokenAmount >= minReferral ? (tokenAmount * referralPercent) / 100 : 0;
+  const isBelowFlexibleMin = tokenAmount > 0 && tokenAmount < flexibleMin;
+  const effectivePlan: 'lock' | 'flexible' | null = useMemo(() => {
+    if (isBelowFlexibleMin) return 'lock';
+    return selectedPlan;
+  }, [isBelowFlexibleMin, selectedPlan]);
+
+  useEffect(() => {
+    if (isBelowFlexibleMin && selectedPlan === 'flexible') {
+      setSelectedPlan('lock');
+    }
+  }, [isBelowFlexibleMin, selectedPlan]);
+
+  const referralBonus = tokenAmount >= minReferral && !isBelowFlexibleMin ? (tokenAmount * referralPercent) / 100 : 0;
   const tokenPrice = config?.tokenPrice || parseFloat(settings.token_price || '1');
   const paymentAmount = tokenAmount * tokenPrice;
 
-  const plan = selectedPlan ? PLAN_CONFIG[selectedPlan] : null;
+  const plan = effectivePlan ? PLAN_CONFIG[effectivePlan] : null;
   const totalReturn = plan ? calcTotalReturn(tokenAmount, plan) : 0;
   const profit = totalReturn - tokenAmount;
   const dailyEarning = plan ? (tokenAmount * plan.dailyRoi) / 100 : 0;
@@ -71,7 +85,7 @@ export default function BuyTokens() {
     setError('');
     setSuccess('');
 
-    if (!selectedPlan) {
+    if (!effectivePlan) {
       setError('Please select an investment plan first');
       return;
     }
@@ -83,12 +97,15 @@ export default function BuyTokens() {
 
     setLoading(true);
     try {
-      const result: any = await api.tokens.buy(tokenAmount, selectedPlan);
+      const result: any = await api.tokens.buy(tokenAmount, effectivePlan);
       const bonusMsg = result.referralBonus > 0
         ? ` Sponsor received ${Number(result.referralBonus).toFixed(2)} XIT referral bonus.`
         : '';
+      const lockNote = result.investment?.planAutoLocked
+        ? ' (Auto Lock Plan — under 100 XIT, ROI only)'
+        : '';
       setSuccess(
-        `${tokenAmount} XIT purchased & invested in ${plan!.name}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
+        `${tokenAmount} XIT purchased & invested in ${plan!.name}${lockNote}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
           result.accountActivated ? ' Your account is now active!' : ''
         }${bonusMsg}`
       );
@@ -116,7 +133,7 @@ export default function BuyTokens() {
       return;
     }
 
-    if (!selectedPlan) {
+    if (!effectivePlan) {
       setError('Please select an investment plan first');
       return;
     }
@@ -135,10 +152,10 @@ export default function BuyTokens() {
         config.paymentDecimals
       );
 
-      const result: any = await api.blockchain.verifyBuy(txHash, tokenAmount, selectedPlan!);
-      setLastTxHash(txHash);
+      const result: any = await api.blockchain.verifyBuy(txHash, tokenAmount, effectivePlan);
+      setLastTxHash(result.tokenPayoutTxHash || txHash);
       setSuccess(
-        `On-chain purchase confirmed! ${tokenAmount} XIT invested in ${plan!.name}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
+        `On-chain purchase confirmed! ${tokenAmount} XIT sent to your MetaMask. Invested in ${plan!.name}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
           result.accountActivated ? ' Your account is now active!' : ''
         }${result.referralBonus > 0 ? ` Referral bonus: ${Number(result.referralBonus).toFixed(2)} XIT` : ''}`
       );
@@ -179,9 +196,9 @@ export default function BuyTokens() {
               accent={isBlockchainMode ? 'orange' : 'emerald'}
             />
             <ModeBadge
-              label={`${Number(user?.wallet_balance || 0).toFixed(0)} USDT`}
-              sub="Your USDT wallet"
-              accent="emerald"
+              label={isBlockchainMode ? `${balances.walletTotal.toFixed(0)} XIT` : `${Number(user?.wallet_balance || 0).toFixed(0)} USDT`}
+              sub={isBlockchainMode ? 'Wallet balance' : 'Your USDT wallet'}
+              accent={isBlockchainMode ? 'orange' : 'emerald'}
             />
             {!isBlockchainMode && (
               <ModeBadge
@@ -267,24 +284,32 @@ export default function BuyTokens() {
             <Zap className="w-4 h-4 text-orange-400" />
             <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Choose Your Plan</h2>
           </div>
-          {!selectedPlan ? (
+          {!effectivePlan ? (
             <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/25 px-3 py-1 rounded-full font-medium">
               Select a plan to continue
             </span>
           ) : (
             <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
-              selectedPlan === 'lock'
+              effectivePlan === 'lock'
                 ? 'bg-purple-500/15 border-purple-500/40 text-purple-300'
                 : 'bg-blue-500/15 border-blue-500/40 text-blue-300'
             }`}>
-              ✓ {selectedPlan === 'lock' ? 'Lock Plan' : 'Flexible Plan'} selected
+              ✓ {effectivePlan === 'lock' ? 'Lock Plan' : 'Flexible Plan'}{isBelowFlexibleMin ? ' (auto)' : ''} selected
             </span>
           )}
         </div>
+        {isBelowFlexibleMin && (
+          <div className="mb-4 flex items-start gap-2 bg-purple-500/10 border border-purple-500/30 text-purple-300 rounded-xl px-4 py-3 text-sm">
+            <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p>
+              Under {flexibleMin} XIT → <strong>Lock Plan only</strong>. You get daily ROI only — no referral, level, or reward income.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <PlanCard
             plan="lock"
-            selected={selectedPlan}
+            selected={effectivePlan}
             onSelect={() => { setSelectedPlan('lock'); setError(''); }}
             icon={Lock}
             multiplier="4X"
@@ -301,8 +326,10 @@ export default function BuyTokens() {
           />
           <PlanCard
             plan="flexible"
-            selected={selectedPlan}
-            onSelect={() => { setSelectedPlan('flexible'); setError(''); }}
+            selected={effectivePlan}
+            disabled={isBelowFlexibleMin}
+            disabledReason={`Requires ${flexibleMin}+ XIT`}
+            onSelect={() => { if (!isBelowFlexibleMin) { setSelectedPlan('flexible'); setError(''); } }}
             icon={Unlock}
             multiplier="3X"
             badge="Flexible"
@@ -333,8 +360,8 @@ export default function BuyTokens() {
                 <h3 className="text-lg font-bold text-white">
                   {isBlockchainMode ? 'On-Chain Purchase' : 'Quick Purchase'}
                 </h3>
-                <p className={`text-xs ${selectedPlan ? 'text-emerald-400' : 'text-amber-400/80'}`}>
-                  {selectedPlan ? `Selected: ${plan!.name}` : 'No plan selected — choose above'}
+                <p className={`text-xs ${effectivePlan ? 'text-emerald-400' : 'text-amber-400/80'}`}>
+                  {effectivePlan ? `Selected: ${plan!.name}${isBelowFlexibleMin ? ' (auto)' : ''}` : 'No plan selected — choose above'}
                 </p>
               </div>
             </div>
@@ -385,12 +412,12 @@ export default function BuyTokens() {
 
               <button
                 onClick={isBlockchainMode ? handleBlockchainBuy : handleDemoBuy}
-                disabled={loading || !selectedPlan || tokenAmount < minAmount || (isBlockchainMode && !connectedAddress)}
+                disabled={loading || !effectivePlan || tokenAmount < minAmount || (isBlockchainMode && !connectedAddress)}
                 className="w-full relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:via-teal-400 hover:to-emerald-500 text-white font-semibold py-4 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 group"
               >
                 {loading ? (
                   <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : !selectedPlan ? (
+                ) : !effectivePlan ? (
                   <>Select a Plan First</>
                 ) : (
                   <>
@@ -418,12 +445,12 @@ export default function BuyTokens() {
               </div>
 
               <div className={`text-center mb-5 py-4 rounded-2xl border ${
-                selectedPlan
+                effectivePlan
                   ? 'bg-emerald-500/5 border-emerald-500/15'
                   : 'bg-gray-900/30 border-gray-800'
               }`}>
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Return</p>
-                {selectedPlan ? (
+                {effectivePlan ? (
                   <>
                     <p className="text-3xl font-bold text-white tabular-nums">
                       {totalReturn.toFixed(2)}
@@ -439,10 +466,10 @@ export default function BuyTokens() {
               </div>
 
               <div className="space-y-3">
-                <ProjectionRow label="You Invest" value={selectedPlan ? `${tokenAmount.toFixed(2)} XIT` : '—'} />
-                <ProjectionRow label="Daily Earning" value={selectedPlan ? `${dailyEarning.toFixed(4)} XIT` : '—'} accent="text-cyan-400" />
-                <ProjectionRow label="Sellable" value={selectedPlan ? `${sellable.toFixed(2)} XIT` : '—'} accent="text-blue-400" />
-                <ProjectionRow label="Locked" value={selectedPlan ? `${locked.toFixed(2)} XIT` : '—'} accent="text-purple-400" />
+                <ProjectionRow label="You Invest" value={effectivePlan ? `${tokenAmount.toFixed(2)} XIT` : '—'} />
+                <ProjectionRow label="Daily Earning" value={effectivePlan ? `${dailyEarning.toFixed(4)} XIT` : '—'} accent="text-cyan-400" />
+                <ProjectionRow label="Sellable" value={effectivePlan ? `${sellable.toFixed(2)} XIT` : '—'} accent="text-blue-400" />
+                <ProjectionRow label="Locked" value={effectivePlan ? `${locked.toFixed(2)} XIT` : '—'} accent="text-purple-400" />
                 {isBlockchainMode && tokenAmount > 0 && (
                   <ProjectionRow
                     label={`Payment (${config?.paymentTokenSymbol || 'BNB'})`}
@@ -461,8 +488,12 @@ export default function BuyTokens() {
               <h3 className="text-sm font-semibold text-white">Referral Bonus</h3>
             </div>
             <p className="text-gray-500 text-xs mb-4 leading-relaxed">
-              Your direct sponsor earns <span className="text-orange-300 font-medium">{referralPercent}%</span> when you buy{' '}
-              <span className="text-white">{minReferral}+ XIT</span>.
+              {isBelowFlexibleMin ? (
+                <>Purchases under {flexibleMin} XIT earn <span className="text-purple-300 font-medium">ROI only</span> — no sponsor or team income.</>
+              ) : (
+                <>Your direct sponsor earns <span className="text-orange-300 font-medium">{referralPercent}%</span> when you buy{' '}
+                <span className="text-white">{minReferral}+ XIT</span>.</>
+              )}
             </p>
             <div className="flex items-center justify-between bg-gradient-to-r from-orange-500/10 to-amber-500/5 border border-orange-500/20 rounded-xl px-4 py-3">
               <span className="text-gray-400 text-sm">Sponsor Gets</span>
@@ -504,6 +535,8 @@ function PlanCard({
   plan,
   selected,
   onSelect,
+  disabled = false,
+  disabledReason,
   icon: Icon,
   multiplier,
   badge,
@@ -520,6 +553,8 @@ function PlanCard({
   plan: 'lock' | 'flexible';
   selected: 'lock' | 'flexible' | null;
   onSelect: () => void;
+  disabled?: boolean;
+  disabledReason?: string;
   icon: React.ComponentType<{ className?: string }>;
   multiplier: string;
   badge: string;
@@ -535,6 +570,7 @@ function PlanCard({
 }) {
   const isSelected = selected === plan;
   const isOtherSelected = selected !== null && !isSelected;
+  const isDisabled = disabled && !isSelected;
 
   const accentStyles = {
     purple: {
@@ -569,15 +605,23 @@ function PlanCard({
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={isDisabled ? undefined : onSelect}
+      disabled={isDisabled}
       className={`relative text-left overflow-hidden rounded-3xl border-2 transition-all duration-300 w-full p-6 sm:p-7 bg-gradient-to-br ${gradient} ${
-        isSelected
+        isDisabled
+          ? 'border-gray-800/80 opacity-40 cursor-not-allowed'
+          : isSelected
           ? a.selectedBorder
           : isOtherSelected
             ? `${a.unselectedBorder} opacity-45 scale-[0.98]`
             : a.unselectedBorder
       }`}
     >
+      {isDisabled && disabledReason && (
+        <div className="absolute top-4 right-4 text-[10px] uppercase tracking-wider text-gray-400 border border-gray-700 rounded-full px-2.5 py-1">
+          {disabledReason}
+        </div>
+      )}
       {isSelected && (
         <>
           <div className={`absolute inset-0 bg-gradient-to-br ${a.glow} pointer-events-none`} />
@@ -587,7 +631,7 @@ function PlanCard({
         </>
       )}
 
-      {!isSelected && !isOtherSelected && (
+      {!isSelected && !isOtherSelected && !isDisabled && (
         <div className="absolute top-4 right-4 text-[10px] uppercase tracking-wider text-gray-500 border border-gray-700 rounded-full px-2.5 py-1">
           Click to select
         </div>

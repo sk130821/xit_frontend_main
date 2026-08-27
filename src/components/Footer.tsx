@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import FooterDust from './FooterDust';
+import { WHITEPAPER_PDF_DOWNLOAD_NAME, WHITEPAPER_PDF_URL } from '@/lib/constants';
 
 
 export default function Footer() {
@@ -26,6 +27,17 @@ export default function Footer() {
               <li><a href="/#home" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Home</a></li>
               <li><a href="/#about" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">About Us</a></li>
               <li><a href="/#whitepaper" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Whitepaper</a></li>
+              <li>
+                <a
+                  href={WHITEPAPER_PDF_URL}
+                  download={WHITEPAPER_PDF_DOWNLOAD_NAME}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-white hover:text-[#f3ba2f] transition-colors"
+                >
+                  Download Whitepaper (PDF)
+                </a>
+              </li>
               <li><a href="/#compensation" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Compensation Plan</a></li>
               <li><a href="/#roadmap" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Roadmap</a></li>
             </ul>
@@ -37,7 +49,7 @@ export default function Footer() {
               <li><a href="/#contact" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Contact</a></li>
               <li><Link to="/privacy-policy" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Terms & Conditions</Link></li>
-              <li><Link to="/login" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Login</Link></li>
+              <li><Link to="/login" className="text-sm text-white hover:text-[#f3ba2f] transition-colors">Connect Wallet</Link></li>
               
             </ul>
           </div>
@@ -48,7 +60,7 @@ export default function Footer() {
               to="/login"
               className="inline-flex items-center justify-center w-full sm:w-auto gap-2 text-sm font-medium bg-[#f3ba2f] hover:bg-[#ffd24a] text-white px-4 py-2.5 rounded-lg transition-all"
             >
-              Create Account
+              Connect Wallet
             </Link>
           </div>
         </div>

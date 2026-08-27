@@ -200,7 +200,7 @@ export default function AdminMlmControl() {
           <Award className="w-5 h-5 text-yellow-400" />
           <h3 className="text-lg font-semibold text-white">Reward Bonus Tiers (Income Type 3)</h3>
         </div>
-        <p className="text-gray-400 text-sm mb-4">Requires 3+ direct referrals. Bonus = % of member's own ROI when claiming.</p>
+        <p className="text-gray-400 text-sm mb-4">Requires 3+ direct legs each meeting tier volume. Bonus = tier % of ROI from every member in those qualifying legs.</p>
         <div className="space-y-3">
           {rewardTiers.map((tier) => (
             <div key={tier.id} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">

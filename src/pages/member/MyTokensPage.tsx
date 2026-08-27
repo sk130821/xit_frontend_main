@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useXitBalances } from '@/hooks/useXitBalances';
+import { useWallet } from '@/context/WalletContext';
 import {
   Wallet,
   Coins,
@@ -14,21 +16,18 @@ import {
 
 export default function MyTokensPage() {
   const { user, refreshUser } = useAuth();
+  const { isBlockchainMode } = useWallet();
+  const balances = useXitBalances();
 
   useEffect(() => {
-    refreshUser();
+    refreshUser().then(() => balances.refresh());
   }, []);
 
   const purchased = Number(user?.total_purchased || 0);
   const earned = Number(user?.total_earned || 0);
   const usdtWallet = Number(user?.wallet_balance || 0);
-  const xitWallet = Number(user?.xit_balance || 0);
-  const planLocked = Number(user?.plan_locked || 0);
-  const planSellable = Number(user?.plan_sellable || 0);
-  const inPlans = planLocked + planSellable;
-
-  // Current XIT tokens you actually hold right now
-  const currentTotal = xitWallet + inPlans;
+  const { walletTotal, planLocked, planSellable, incomeBalance } = balances;
+  const currentTotal = walletTotal;
 
   const purchaseShare = currentTotal > 0 ? (purchased / (purchased + earned || 1)) * 100 : 0;
   const earnShare = currentTotal > 0 ? (earned / (purchased + earned || 1)) * 100 : 0;
@@ -37,7 +36,9 @@ export default function MyTokensPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-white">My XIT Tokens</h1>
-        <p className="text-gray-400 text-sm mt-1">USDT wallet for buy/sell · XIT holdings from plans & income</p>
+        <p className="text-gray-400 text-sm mt-1">
+          {isBlockchainMode ? 'Real XIT in your MetaMask wallet · plan hold tracked on-chain' : 'USDT wallet for buy/sell · XIT holdings from plans & income'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
@@ -53,7 +54,9 @@ export default function MyTokensPage() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80 font-medium">Current XIT Holdings</p>
-                <p className="text-gray-500 text-xs">Free XIT + sellable + locked in plans</p>
+                <p className="text-gray-500 text-xs">
+                  {isBlockchainMode ? 'Wallet balance (on-chain)' : 'Free XIT + sellable + locked in plans'}
+                </p>
               </div>
               <Sparkles className="w-4 h-4 text-amber-400/60 ml-auto hidden sm:block" />
             </div>
@@ -66,7 +69,7 @@ export default function MyTokensPage() {
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-5">
-              <BreakdownChip icon={Wallet} label="Free XIT" value={xitWallet} color="from-emerald-500/20 to-emerald-600/5 border-emerald-500/25 text-emerald-300" />
+              <BreakdownChip icon={Wallet} label={isBlockchainMode ? 'ROI & Income' : 'Free XIT'} value={incomeBalance} color="from-emerald-500/20 to-emerald-600/5 border-emerald-500/25 text-emerald-300" />
               <BreakdownChip icon={Unlock} label="Sellable in Plan" value={planSellable} color="from-blue-500/20 to-blue-600/5 border-blue-500/25 text-blue-300" />
               <BreakdownChip icon={Lock} label="Locked in Plan" value={planLocked} color="from-purple-500/20 to-purple-600/5 border-purple-500/25 text-purple-300" />
             </div>
@@ -106,7 +109,7 @@ export default function MyTokensPage() {
           </div>
         </div>
 
-        {/* USDT Wallet card */}
+        {/* USDT / wallet card */}
         <div className="xl:col-span-2 relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-[#0a1512] p-6 sm:p-8 flex flex-col justify-between min-h-[260px]">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent pointer-events-none" />
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
@@ -114,14 +117,27 @@ export default function MyTokensPage() {
           <div className="relative">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[11px] font-semibold uppercase tracking-wider mb-5">
               <Wallet className="w-3.5 h-3.5" />
-              USDT Wallet
+              {isBlockchainMode ? 'MetaMask Wallet' : 'USDT Wallet'}
             </div>
-            <p className="text-gray-400 text-sm mb-1">Available USDT</p>
-            <p className="text-3xl sm:text-4xl font-bold text-white tabular-nums mb-1">
-              {usdtWallet.toFixed(2)}
-              <span className="text-emerald-400 text-xl ml-2 font-semibold">USDT</span>
-            </p>
-            <p className="text-gray-500 text-xs">Decreases on buy · Increases on sell</p>
+            {isBlockchainMode ? (
+              <>
+                <p className="text-gray-400 text-sm mb-1">Linked wallet XIT</p>
+                <p className="text-3xl sm:text-4xl font-bold text-white tabular-nums mb-1">
+                  {walletTotal.toFixed(2)}
+                  <span className="text-orange-400 text-xl ml-2 font-semibold">XIT</span>
+                </p>
+                <p className="text-gray-500 text-xs font-mono break-all">{user?.wallet_address || 'Not connected'}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-gray-400 text-sm mb-1">Available USDT</p>
+                <p className="text-3xl sm:text-4xl font-bold text-white tabular-nums mb-1">
+                  {usdtWallet.toFixed(2)}
+                  <span className="text-emerald-400 text-xl ml-2 font-semibold">USDT</span>
+                </p>
+                <p className="text-gray-500 text-xs">Decreases on buy · Increases on sell</p>
+              </>
+            )}
           </div>
 
           <div className="relative mt-6 space-y-3">

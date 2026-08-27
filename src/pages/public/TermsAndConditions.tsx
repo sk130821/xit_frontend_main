@@ -78,7 +78,7 @@ export default function TermsAndConditions() {
 
       <LegalSection title="11. Contact">
         <p>
-          Questions: support@xittoken.com. Phone (mock): +1 (555) 000-0000. Support hours: 24/7 online platform; email replies typically within 24 hours.
+          Questions: support@xittoken.co.
         </p>
       </LegalSection>
     </LegalPage>

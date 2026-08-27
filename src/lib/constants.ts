@@ -1,3 +1,6 @@
+export const WHITEPAPER_PDF_URL = '/XIT%20WHITEPAPER.pdf';
+export const WHITEPAPER_PDF_DOWNLOAD_NAME = 'XIT-WHITEPAPER.pdf';
+
 export const PLAN_CONFIG = {
   lock: {
     name: 'Lock Plan (3X)',

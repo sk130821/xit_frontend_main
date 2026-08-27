@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import GalaxyBg from './GalaxyBg';
 import GlobeVisual from './GlobeVisual';
+import { WHITEPAPER_PDF_DOWNLOAD_NAME, WHITEPAPER_PDF_URL } from '@/lib/constants';
 
 export default function Hero() {
   return (
@@ -30,7 +31,7 @@ export default function Hero() {
               Disciplined tokenomics, community-powered growth — built for the next decade of crypto value.
             </p>
 
-            <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:items-center sm:justify-center lg:justify-start sm:gap-4">
+            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-center lg:justify-start gap-3 sm:gap-4">
               <a
                 href="#whitepaper"
                 className="inline-flex items-center justify-center gap-1.5 sm:gap-2 w-full sm:w-auto min-w-0 sm:min-w-[160px] px-3 sm:px-7 py-3 sm:py-3.5 rounded-full bg-white text-[#05080f] font-semibold text-xs sm:text-base hover:bg-[#f3ba2f] transition-all shadow-lg"
@@ -38,11 +39,21 @@ export default function Hero() {
                 <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 White Paper
               </a>
+              <a
+                href={WHITEPAPER_PDF_URL}
+                download={WHITEPAPER_PDF_DOWNLOAD_NAME}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 sm:gap-2 w-full sm:w-auto min-w-0 sm:min-w-[160px] px-3 sm:px-7 py-3 sm:py-3.5 rounded-full border border-white/20 text-white font-semibold text-xs sm:text-base hover:bg-white/10 transition-all"
+              >
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                Download PDF
+              </a>
               <Link
                 to="/login"
                 className="inline-flex items-center justify-center w-full sm:w-auto min-w-0 sm:min-w-[160px] px-3 sm:px-7 py-3 sm:py-3.5 rounded-full border border-[#f3ba2f]/50 text-[#f3ba2f] font-semibold text-xs sm:text-base hover:bg-[#f3ba2f]/10 transition-all"
               >
-                Get Started
+                Connect Wallet
               </Link>
             </div>
           </div>

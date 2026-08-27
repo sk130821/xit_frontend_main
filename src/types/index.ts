@@ -1,7 +1,7 @@
 export interface User {
   id: number;
   username: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   wallet_address: string | null;
   referral_code: string;
@@ -13,6 +13,9 @@ export interface User {
   total_purchased?: number;
   plan_sellable?: number;
   plan_locked?: number;
+  platform_mode?: string;
+  on_chain_xit_balance?: number | null;
+  total_sellable?: number | null;
   is_active: boolean;
   created_at: string;
 }
@@ -38,6 +41,7 @@ export interface Investment {
   end_date: string;
   last_roi_date: string;
   status: 'active' | 'completed' | 'cancelled';
+  income_eligible?: boolean;
   created_at: string;
 }
 
@@ -96,11 +100,44 @@ export interface ReferralNetworkMember {
   username: string;
   email: string;
   level: number;
+  is_direct?: boolean;
   wallet_balance: number;
   is_active: boolean;
   created_at: string;
   total_invested: number;
   total_purchased: number;
+  self_business: number;
+  team_business: number;
+  total_business: number;
+}
+
+export interface NetworkLevelStat {
+  level: number;
+  members: number;
+  self_business: number;
+  team_business: number;
+  total_business: number;
+  active_investment: number;
+  level_bonus_percent: number;
+  estimated_daily_downline_roi: number;
+  estimated_daily_level_income: number;
+  received_level_income: number;
+}
+
+export interface NetworkSummary {
+  total_members: number;
+  active_members: number;
+  direct_count: number;
+  direct_self_business: number;
+  total_self_business: number;
+  total_team_business: number;
+  estimated_daily_level_income?: number;
+  level_stats: NetworkLevelStat[];
+}
+
+export interface NetworkResponse {
+  members: ReferralNetworkMember[];
+  summary: NetworkSummary;
 }
 
 export interface AdminUser {
@@ -168,9 +205,18 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface DirectLegBusiness {
+  user_id: number;
+  username: string;
+  self_business: number;
+  team_business: number;
+  total_business: number;
+}
+
 export interface RewardStatus {
   direct_count: number;
   direct_volume: number;
+  direct_legs: DirectLegBusiness[];
   current_tier: { id: number; tier_name: string; percentage: number } | null;
-  tiers: (RewardTier & { qualified: boolean })[];
+  tiers: (RewardTier & { qualified: boolean; qualifying_count: number })[];
 }

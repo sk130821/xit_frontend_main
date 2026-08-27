@@ -24,6 +24,8 @@ import {
 import BrandLogo from '@/components/BrandLogo';
 import WalletConnectButton from '@/components/WalletConnectButton';
 import { useAuth } from '@/context/AuthContext';
+import { useXitBalances } from '@/hooks/useXitBalances';
+import { useWallet } from '@/context/WalletContext';
 
 const menuSections = [
   {
@@ -63,13 +65,15 @@ const menuSections = [
     title: 'ACCOUNT',
     items: [
       { to: '/profile', label: 'My Profile', icon: User },
-      { to: '/change-password', label: 'Change Password', icon: KeyRound },
+      { to: '/change-password', label: 'Change Password', icon: KeyRound, requireEmail: true },
     ],
   },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
+  const { isBlockchainMode } = useWallet();
+  const balances = useXitBalances();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -160,7 +164,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {section.title}
               </p>
               <div className="space-y-0.5">
-                {section.items.map((item) => (
+                {section.items
+                  .filter((item) => {
+                    if ('requireEmail' in item && (item as { requireEmail?: boolean }).requireEmail) {
+                      return !!user?.email;
+                    }
+                    return true;
+                  })
+                  .map((item) => (
                   <NavLink
                     key={item.to}
                     to={item.to}
@@ -185,7 +196,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Footer */}
         <div className="px-4 py-4 border-t border-gray-900">
-          <p className="text-[11px] text-gray-600 truncate mb-3 px-1">{user?.email}</p>
+          <p className="text-[11px] text-gray-600 truncate mb-3 px-1">
+            {user?.wallet_address
+              ? `${user.wallet_address.slice(0, 6)}…${user.wallet_address.slice(-4)}`
+              : user?.email || user?.username}
+          </p>
           <button
             onClick={handleSignOut}
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium bg-red-950/40 border border-red-900/50 text-red-400 hover:bg-red-950/60 hover:text-red-300 transition-all"
@@ -208,12 +223,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Menu className="w-5 h-5" />
             </button>
             <div className="text-xs sm:text-sm text-gray-500 min-w-0">
-              <span className="block sm:inline">
-                Balance: <span className="text-emerald-400 font-semibold">{Number(user?.wallet_balance || 0).toFixed(2)} USDT</span>
-              </span>
-              <span className="hidden sm:inline text-gray-600 mx-2">·</span>
+              {!isBlockchainMode && (
+                <span className="block sm:inline">
+                  Balance: <span className="text-emerald-400 font-semibold">{Number(user?.wallet_balance || 0).toFixed(2)} USDT</span>
+                  <span className="hidden sm:inline text-gray-600 mx-2">·</span>
+                </span>
+              )}
               <span className="block sm:inline text-orange-400 font-semibold truncate">
-                {(Number(user?.xit_balance || 0) + Number(user?.plan_sellable || 0)).toFixed(2)} XIT sellable
+                {isBlockchainMode
+                  ? `${balances.walletTotal.toFixed(2)} XIT wallet · ${balances.totalSellable.toFixed(2)} sellable`
+                  : `${balances.totalSellable.toFixed(2)} XIT sellable`}
               </span>
             </div>
           </div>

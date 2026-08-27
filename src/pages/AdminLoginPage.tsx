@@ -84,7 +84,7 @@ export default function AdminLoginPage() {
           </form>
 
           <div className="mt-6 flex items-center justify-between text-xs">
-            <Link to="/login" className="text-gray-500 hover:text-xit-gold-light transition-colors">Member Login →</Link>
+            <Link to="/login" className="text-gray-500 hover:text-xit-gold-light transition-colors">Member Connect Wallet →</Link>
             <Link to="/" className="text-gray-500 hover:text-xit-blue flex items-center gap-1 transition-colors"><Home className="w-3.5 h-3.5" />Website</Link>
           </div>
         </div>

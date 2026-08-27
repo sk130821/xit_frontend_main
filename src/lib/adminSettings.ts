@@ -45,8 +45,9 @@ export function buildSettingsList(s: Record<string, string>): SettingItem[] {
     { setting_key: 'min_referral_purchase', setting_value: s.min_referral_purchase || '100', description: 'Minimum purchase for referral bonus to trigger' },
     { setting_key: 'lock_period_days', setting_value: s.lock_period_days, description: 'Lock period in days for lock plan' },
     { setting_key: 'flexible_lock_days', setting_value: s.flexible_lock_days, description: 'Lock period for 20% locked in flexible plan' },
-    { setting_key: 'min_purchase', setting_value: s.min_purchase, description: 'Minimum token purchase amount' },
-    { setting_key: 'min_investment', setting_value: s.min_investment, description: 'Minimum investment amount' },
+    { setting_key: 'min_purchase', setting_value: s.min_purchase || '1', description: 'Minimum token purchase amount' },
+    { setting_key: 'min_investment', setting_value: s.min_investment || '1', description: 'Minimum investment amount' },
+    { setting_key: 'flexible_min_tokens', setting_value: s.flexible_min_tokens || '100', description: 'Minimum tokens for Flexible plan and MLM income' },
     { setting_key: 'admin_charge_percent', setting_value: s.admin_charge_percent, description: 'Admin charge percentage on token sales' },
   ];
 }

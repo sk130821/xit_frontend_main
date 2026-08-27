@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Lock, Unlock, TrendingUp, Check, ArrowRight, Coins, Clock, Percent, AlertCircle, BookOpen } from 'lucide-react';
+import { Lock, Unlock, TrendingUp, Check, ArrowRight, Coins, Clock, Percent, AlertCircle, BookOpen, Download } from 'lucide-react';
 import FooterDust from '@/components/FooterDust';
+import { WHITEPAPER_PDF_DOWNLOAD_NAME, WHITEPAPER_PDF_URL } from '@/lib/constants';
 
 const allocations = [
   { label: 'Community Presale', percent: 70, color: 'bg-[#f3ba2f]', purpose: 'Direct distribution to the founding community' },
@@ -36,6 +37,16 @@ export default function Whitepaper() {
           <p className="text-sm sm:text-base text-white mt-4 max-w-2xl mx-auto">
             Fixed supply, transparent distribution, and honest pricing until public exchange listing.
           </p>
+          <a
+            href={WHITEPAPER_PDF_URL}
+            download={WHITEPAPER_PDF_DOWNLOAD_NAME}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#f3ba2f] hover:bg-[#ffd24a] text-[#05080f] font-semibold px-6 py-3 text-sm sm:text-base transition-all shadow-lg shadow-[#f3ba2f]/20"
+          >
+            <Download className="w-4 h-4 shrink-0" />
+            Download Whitepaper (PDF)
+          </a>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-[#05080f]/40 backdrop-blur-xl p-5 sm:p-8 mb-6 sm:mb-8">

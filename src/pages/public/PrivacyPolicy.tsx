@@ -56,7 +56,7 @@ export default function PrivacyPolicy() {
 
       <LegalSection title="7. Your Rights">
         <p>
-          Subject to applicable law, you may request access, correction, or deletion of off-chain personal data by emailing support@xittoken.com. Wallet transactions on BNB Smart Chain cannot be erased. We may retain records needed to operate commissions, ROI, and security.
+          Subject to applicable law, you may request access, correction, or deletion of off-chain personal data by emailing support@xittoken.co. Wallet transactions on BNB Smart Chain cannot be erased. We may retain records needed to operate commissions, ROI, and security.
         </p>
       </LegalSection>
 

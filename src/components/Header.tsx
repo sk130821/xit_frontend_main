@@ -107,8 +107,8 @@ export default function Header() {
               className="text-sm font-medium bg-gradient-to-r from-[#f3ba2f] to-[#d4a017] hover:from-[#ffd24a] hover:to-[#f3ba2f] text-white px-4 xl:px-5 py-3 rounded-lg transition-all shadow-lg shadow-[#f3ba2f]/20 flex items-center gap-2"
             >
               <LayoutDashboard className="w-4 h-4" />
-              <span className="hidden xl:inline">Login</span>
-              <span className="xl:hidden">Login</span>
+              <span className="hidden xl:inline">Connect Wallet</span>
+              <span className="xl:hidden">Connect</span>
             </Link>
           </div>
 
@@ -175,7 +175,7 @@ export default function Header() {
             onClick={() => setMobileOpen(false)}
             className="block text-center text-sm font-medium bg-gradient-to-r from-[#f3ba2f] to-[#d4a017] text-white px-4 py-2.5 rounded-xl"
           >
-            Login
+            Connect Wallet
           </Link>
         </div>
       </aside>

@@ -91,6 +91,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePageRoute />} />
       <Route path="/login" element={<AuthRoute><AuthPage /></AuthRoute>} />
+      <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
+      <Route path="/reset-password" element={<Navigate to="/login" replace />} />
       <Route path="/plans" element={<PublicPage><PlansPage /></PublicPage>} />
       <Route path="/about" element={<Navigate to="/#about" replace />} />
       <Route path="/plans" element={<Navigate to="/#whitepaper" replace />} />

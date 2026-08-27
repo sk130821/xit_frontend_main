@@ -2,11 +2,11 @@ function resolveApiUrl(): string {
   if (typeof window !== 'undefined') {
     const { hostname, protocol } = window.location;
 
-    if (hostname === 'xit.virajnandanigold.com') {
-      return 'https://xit.back.virajnandanigold.com/api';
+    if (hostname === 'xittoken.co' || hostname === 'www.xittoken.co') {
+      return 'https://back.xittoken.co/api';
     }
 
-    if (hostname === 'xit.back.virajnandanigold.com') {
+    if (hostname === 'back.xittoken.co') {
       return `${protocol}//${hostname}/api`;
     }
   }
@@ -85,6 +85,18 @@ export const api = {
       request(`/auth/verify-referral?code=${encodeURIComponent(code)}`),
     login: (body: { email: string; password: string }) =>
       request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    walletStatus: (address: string) =>
+      request(`/auth/wallet-status?address=${encodeURIComponent(address)}`),
+    walletLogin: (body: {
+      address: string;
+      signature: string;
+      timestamp: number;
+      referralCode?: string;
+    }) => request('/auth/wallet-login', { method: 'POST', body: JSON.stringify(body) }),
+    forgotPassword: (email: string) =>
+      request('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: (token: string, newPassword: string) =>
+      request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
     me: () => request('/auth/me'),
     changePassword: (currentPassword: string, newPassword: string) =>
       request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
@@ -107,12 +119,15 @@ export const api = {
     claimRoi: (investmentId: number) =>
       request('/investments/claim-roi', { method: 'POST', body: JSON.stringify({ investmentId }) }),
     list: () => request('/investments/list'),
-    sell: (tokenAmount: number) =>
-      request('/investments/sell', { method: 'POST', body: JSON.stringify({ tokenAmount }) }),
+    sell: (tokenAmount: number, txHash?: string, investmentId?: number) =>
+      request('/investments/sell', {
+        method: 'POST',
+        body: JSON.stringify({ tokenAmount, txHash, investmentId }),
+      }),
   },
 
   user: {
-    network: () => request('/user/network'),
+    network: () => request<import('@/types').NetworkResponse>('/user/network'),
     transactions: (params?: Record<string, string>) => {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return request<{ items: import('@/types').Transaction[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`/user/transactions${qs}`);
@@ -147,8 +162,19 @@ export const api = {
     updateSetting: (key: string, value: string) =>
       adminRequest('/admin/update-setting', { method: 'POST', body: JSON.stringify({ key, value }) }),
     blockchainStatus: () => adminRequest('/blockchain/admin-status'),
-    payoutPreview: () => adminRequest('/admin/payout/preview'),
-    runPayout: () => adminRequest('/admin/payout/run', { method: 'POST' }),
+    payoutPreview: (date?: string) => {
+      const qs = date ? `?date=${encodeURIComponent(date)}` : '';
+      return adminRequest(`/admin/payout/preview${qs}`);
+    },
+    payoutDebug: (date?: string) => {
+      const qs = date ? `?date=${encodeURIComponent(date)}` : '';
+      return adminRequest(`/admin/payout/debug${qs}`);
+    },
+    runPayout: (payoutDate?: string) =>
+      adminRequest('/admin/payout/run', {
+        method: 'POST',
+        body: JSON.stringify(payoutDate ? { payoutDate } : {}),
+      }),
     payoutRuns: (params?: Record<string, string>) => {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return adminRequest(`/admin/payout/runs${qs}`);
@@ -173,6 +199,7 @@ export const api = {
 
   blockchain: {
     config: () => request('/blockchain/config'),
+    walletBalance: () => request('/blockchain/wallet-balance'),
     linkWallet: (walletAddress: string) =>
       request('/blockchain/link-wallet', { method: 'POST', body: JSON.stringify({ walletAddress }) }),
     verifyBuy: (txHash: string, tokenAmount: number, planType: 'lock' | 'flexible') =>

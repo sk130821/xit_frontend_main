@@ -15,12 +15,16 @@ import {
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useXitBalances } from '@/hooks/useXitBalances';
+import { useWallet } from '@/context/WalletContext';
 import type { Investment, Transaction, LevelBonusRate, ReferralNetworkMember, RewardStatus } from '@/types';
 import { TRANSACTION_LABELS, TRANSACTION_COLORS } from '@/lib/constants';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isBlockchainMode } = useWallet();
+  const balances = useXitBalances();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [levelBonusRates, setLevelBonusRates] = useState<LevelBonusRate[]>([]);
@@ -75,8 +79,13 @@ export default function Dashboard() {
     <div className="space-y-6">
       <PageHero badge="Member Panel" badgeIcon={LayoutDashboard} title={`Welcome, ${user?.username}`} subtitle="Your XIT Token MLM overview at a glance">
         <div className="flex gap-3 flex-wrap">
-          <HeroStat label="USDT Wallet" value={`${Number(user?.wallet_balance || 0).toFixed(0)} USDT`} accent />
-          <HeroStat label="XIT Holdings" value={`${(Number(user?.xit_balance || 0) + Number(user?.plan_sellable || 0) + Number(user?.plan_locked || 0)).toFixed(0)} XIT`} />
+          {!isBlockchainMode && (
+            <HeroStat label="USDT Wallet" value={`${Number(user?.wallet_balance || 0).toFixed(0)} USDT`} accent />
+          )}
+          <HeroStat label="XIT Holdings" value={`${balances.walletTotal.toFixed(0)} XIT`} accent={isBlockchainMode} />
+          {isBlockchainMode && (
+            <HeroStat label="Sellable" value={`${balances.totalSellable.toFixed(0)} XIT`} />
+          )}
         </div>
       </PageHero>
 
@@ -87,8 +96,16 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="USDT Wallet" value={Number(user?.wallet_balance || 0).toFixed(2)} suffix="USDT" icon={Wallet} color="emerald" />
-        <StatCard label="Free XIT" value={Number(user?.xit_balance || 0).toFixed(2)} suffix="XIT" icon={TrendingUp} color="blue" />
+        {!isBlockchainMode && (
+          <StatCard label="USDT Wallet" value={Number(user?.wallet_balance || 0).toFixed(2)} suffix="USDT" icon={Wallet} color="emerald" />
+        )}
+        <StatCard
+          label={isBlockchainMode ? 'Wallet XIT' : 'Free XIT'}
+          value={isBlockchainMode ? balances.walletTotal.toFixed(2) : balances.incomeBalance.toFixed(2)}
+          suffix="XIT"
+          icon={TrendingUp}
+          color="blue"
+        />
         <StatCard label="Total Invested" value={Number(user?.total_invested || 0).toFixed(2)} suffix="XIT" icon={Coins} color="purple" />
         <StatCard label="Direct Referrals" value={String(referralCount)} icon={Users} color="cyan" />
       </div>
@@ -143,7 +160,7 @@ export default function Dashboard() {
               <p className="text-xl font-bold text-white">{rewardStatus.direct_count}</p>
             </div>
             <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-500">Direct Team Volume</p>
+              <p className="text-xs text-gray-500">Combined Direct Volume</p>
               <p className="text-xl font-bold text-white">{rewardStatus.direct_volume.toFixed(0)} XIT</p>
             </div>
             <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
@@ -158,7 +175,7 @@ export default function Dashboard() {
               <div key={tier.id} className={`rounded-lg p-3 text-center border ${tier.qualified ? 'border-yellow-500/40 bg-yellow-500/10' : 'border-gray-800 bg-gray-900/30'}`}>
                 <p className="text-xs text-gray-400">{tier.tier_name}</p>
                 <p className="text-sm font-bold text-white mt-1">{tier.percentage}%</p>
-                <p className="text-xs text-gray-500 mt-1">{(tier.min_volume / 1000).toFixed(0)}K vol</p>
+                <p className="text-xs text-gray-500 mt-1">{(tier.min_volume / 1000).toFixed(0)}K each leg · {tier.qualifying_count}/{tier.required_directs}</p>
               </div>
             ))}
           </div>

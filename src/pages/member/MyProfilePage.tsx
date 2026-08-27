@@ -19,14 +19,18 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useXitBalances } from '@/hooks/useXitBalances';
+import { useWallet } from '@/context/WalletContext';
 import WalletConnectButton from '@/components/WalletConnectButton';
 
 export default function MyProfilePage() {
   const { user } = useAuth();
+  const { isBlockchainMode } = useWallet();
+  const balances = useXitBalances();
   const [copied, setCopied] = useState(false);
 
   const usdtWallet = Number(user?.wallet_balance || 0);
-  const xitBalance = Number(user?.xit_balance || 0);
+  const xitBalance = isBlockchainMode ? balances.walletTotal : balances.incomeBalance;
   const earned = Number(user?.total_earned || 0);
   const invested = Number(user?.total_invested || 0);
   const purchased = Number(user?.total_purchased || 0);
@@ -113,8 +117,18 @@ export default function MyProfilePage() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Wallet} label="USDT Wallet" value={usdtWallet} suffix="USDT" accent="text-emerald-400" border="border-emerald-500/20" bg="from-emerald-600/10" />
-        <StatCard icon={Coins} label="Free XIT" value={xitBalance} suffix="XIT" accent="text-orange-400" border="border-orange-500/20" bg="from-orange-600/10" />
+        {!isBlockchainMode && (
+          <StatCard icon={Wallet} label="USDT Wallet" value={usdtWallet} suffix="USDT" accent="text-emerald-400" border="border-emerald-500/20" bg="from-emerald-600/10" />
+        )}
+        <StatCard
+          icon={Coins}
+          label={isBlockchainMode ? 'Wallet XIT' : 'Free XIT'}
+          value={xitBalance}
+          suffix="XIT"
+          accent="text-orange-400"
+          border="border-orange-500/20"
+          bg="from-orange-600/10"
+        />
         <StatCard icon={TrendingUp} label="Total Earned" value={earned} suffix="XIT" accent="text-cyan-400" border="border-cyan-500/20" bg="from-cyan-600/10" />
         <StatCard icon={Coins} label="Total Invested" value={invested} accent="text-purple-400" border="border-purple-500/20" bg="from-purple-600/10" />
         <StatCard icon={ShoppingBag} label="Total Purchased" value={purchased} accent="text-blue-400" border="border-blue-500/20" bg="from-blue-600/10" />

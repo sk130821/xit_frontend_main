@@ -2,9 +2,59 @@ import { Check } from 'lucide-react';
 import GlobeVisual from './GlobeVisual';
 
 const phases = [
-  { badge: 'FOUNDATION', status: 'Active', title: 'Foundation', items: ['Smart contract development & independent security audit', 'Website, whitepaper & brand identity launch', 'XIT deployment on BNB Smart Chain; contract verified on BscScan', 'dApp v1 — wallet connect, dashboard and ecosystem stats', 'Community channels go live'] },
-  { badge: 'UPCOMING', status: 'Upcoming', title: 'Growth', items: ['Community expansion all over the world', 'Blockchain literacy educational content series', 'Community events & ambassador program', 'Live transparency dashboard', 'Strategic partnership announcements'] },
-  { badge: 'UPCOMING', status: 'Upcoming', title: 'Expansion', items: ['PancakeSwap listing & liquidity pool activation', 'XIT staking pools launch', 'First public buyback & burn event', 'Multi-language platform rollout', 'Global community meetups & recognition events'] },
+  {
+    badge: 'PHASE 01',
+    subtitle: 'FOUNDATION',
+    status: 'Active',
+    title: 'Foundation',
+    items: [
+      'XIT token development',
+      'Smart contract deployment',
+      'Website & community launch',
+      'Whitepaper',
+      'Initial liquidity planning',
+      'Security review',
+    ],
+  },
+  {
+    badge: 'PHASE 02',
+    subtitle: 'COMMUNITY',
+    status: 'Upcoming',
+    title: 'Community',
+    items: [
+      'Global community development',
+      'Marketing campaigns',
+      'Referral ecosystem',
+      'Leadership programs',
+      'Strategic partnerships',
+    ],
+  },
+  {
+    badge: 'PHASE 03',
+    subtitle: 'EXPANSION',
+    status: 'Upcoming',
+    title: 'Expansion',
+    items: [
+      'Additional token utilities',
+      'NFT ecosystem',
+      'Web3 applications',
+      'Liquidity expansion',
+      'Ecosystem partnerships',
+    ],
+  },
+  {
+    badge: 'PHASE 04',
+    subtitle: 'GLOBAL ECOSYSTEM',
+    status: 'Upcoming',
+    title: 'Global Ecosystem',
+    items: [
+      'Digital products',
+      'Expanded utility',
+      'Global partnerships',
+      'Community applications',
+      'Broader Web3 ecosystem',
+    ],
+  },
 ];
 
 export default function Roadmap() {
@@ -23,18 +73,18 @@ export default function Roadmap() {
       <div className="relative z-10 max-w-[1400px] mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 items-center">
           <div>
-            <p className="text-xs sm:text-sm text-[#f3ba2f] font-medium uppercase tracking-widest mb-3">Roadmap</p>
+            <p className="text-xs sm:text-sm text-[#f3ba2f] font-medium uppercase tracking-widest mb-3">XIT Roadmap</p>
             <h2 className="text-2xl sm:text-3xl md:text-4xl xl:text-5xl font-bold text-white leading-tight">
               Growth Plan
             </h2>
             <p className="text-sm sm:text-base text-white mt-4 max-w-xl">
-              From launch to a global ecosystem — real technology ships before each next phase.
+              From foundation to a global Web3 ecosystem — building step by step with the community.
             </p>
 
             <div className="mt-6 sm:mt-8 space-y-3 sm:space-y-4">
               {phases.map((phase) => (
                 <div
-                  key={phase.title}
+                  key={phase.badge}
                   className="rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-[2px] p-4 sm:p-5 hover:border-[#f3ba2f]/35 hover:bg-white/[0.07] transition-all"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -42,7 +92,12 @@ export default function Roadmap() {
                       <span className={`text-[10px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 rounded-full ${phase.status === 'Active' ? 'bg-[#f3ba2f]/20 text-[#f3ba2f]' : 'bg-white/10 text-white'}`}>
                         {phase.badge}
                       </span>
-                      <h3 className="text-lg sm:text-xl font-bold text-white">{phase.title}</h3>
+                      <div>
+                        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[#f3ba2f]/80">
+                          {phase.subtitle}
+                        </p>
+                        <h3 className="text-lg sm:text-xl font-bold text-white">{phase.title}</h3>
+                      </div>
                     </div>
                     <span className={`text-xs font-medium ${phase.status === 'Active' ? 'text-[#f3ba2f]' : 'text-white/80'}`}>
                       {phase.status}
