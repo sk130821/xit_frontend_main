@@ -53,7 +53,7 @@ export default function SellTokens() {
   const sellAmount = parseFloat(amount) || 0;
   const adminCharge = (sellAmount * adminChargePercent) / 100;
   const netXit = sellAmount - adminCharge;
-  const paymentSymbol = config?.paymentTokenSymbol || 'BNB';
+  const paymentSymbol = config?.paymentTokenSymbol || 'USDT';
   const paymentReceive = netXit * tokenPrice;
 
   const usdtWallet = Number(user?.wallet_balance || 0);

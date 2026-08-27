@@ -128,6 +128,11 @@ export default function BuyTokens() {
       return;
     }
 
+    if (!config?.paymentTokenAddress) {
+      setError('USDT payment is not configured. Admin must set BSC USDT (payment_token_address).');
+      return;
+    }
+
     if (!connectedAddress) {
       setError('Connect MetaMask first');
       return;
@@ -149,7 +154,12 @@ export default function BuyTokens() {
         config.adminTreasuryWallet,
         paymentAmount.toFixed(8),
         config.paymentTokenAddress,
-        config.paymentDecimals
+        config.paymentDecimals,
+        {
+          chainId: config.chainId,
+          chainName: config.chainName,
+          rpcUrl: config.rpcUrl,
+        }
       );
 
       const result: any = await api.blockchain.verifyBuy(txHash, tokenAmount, effectivePlan);
@@ -399,8 +409,8 @@ export default function BuyTokens() {
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
                   Min {minAmount} XIT · ${tokenPrice}/token
+                  {isBlockchainMode && ` · Pay in USDT (BEP-20) on ${config?.chainName || 'BNB Smart Chain'}`}
                   {!isBlockchainMode && ` · You pay ${paymentAmount.toFixed(2)} USDT from wallet`}
-                  {isBlockchainMode && config?.paymentTokenSymbol ? ` · Pay in ${config.paymentTokenSymbol}` : ''}
                 </p>
               </div>
 
@@ -472,7 +482,7 @@ export default function BuyTokens() {
                 <ProjectionRow label="Locked" value={effectivePlan ? `${locked.toFixed(2)} XIT` : '—'} accent="text-purple-400" />
                 {isBlockchainMode && tokenAmount > 0 && (
                   <ProjectionRow
-                    label={`Payment (${config?.paymentTokenSymbol || 'BNB'})`}
+                    label={`Payment (USDT)`}
                     value={paymentAmount.toFixed(4)}
                     accent="text-orange-400"
                   />

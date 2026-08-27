@@ -79,6 +79,15 @@ export interface BlockchainConfig {
   onChainBalance?: string | null;
   requiresWallet?: boolean;
   hasPrivateKey?: boolean;
+  adminBalances?: {
+    chainId: number;
+    chainName: string;
+    tokenSymbol: string;
+    paymentSymbol: string;
+    sameWallet: boolean;
+    payout: { address: string | null; xit: string | null; usdt: string | null; bnb: string | null };
+    treasury: { address: string | null; xit: string | null; usdt: string | null; bnb: string | null };
+  };
 }
 
 export interface LevelBonusRate {

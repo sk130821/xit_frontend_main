@@ -142,25 +142,96 @@ export default function AdminBlockchain() {
         </div>
 
         {blockchainStatus && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-500">On-Chain Token Balance</p>
-              <p className="text-lg font-bold text-white">
-                {blockchainStatus.onChainBalance ?? 'N/A'} {blockchainStatus.tokenSymbol}
+          <div className="space-y-4 mb-5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm text-gray-400">
+                Admin on-chain balances · {blockchainStatus.chainName || 'Network'} (id {blockchainStatus.chainId})
               </p>
+              <button
+                type="button"
+                onClick={() => loadData()}
+                className="text-xs text-orange-400 hover:text-orange-300 border border-orange-500/30 rounded-lg px-3 py-1.5"
+              >
+                Refresh balances
+              </button>
             </div>
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-500">Payout Wallet</p>
-              <p className="text-sm font-mono text-orange-400 truncate">
-                {blockchainStatus.adminPayoutWallet || 'Not set'}
-              </p>
-            </div>
-            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
-              <p className="text-xs text-gray-500">Admin Private Key (.env)</p>
-              <p className={`text-sm font-semibold ${blockchainStatus.hasPrivateKey ? 'text-emerald-400' : 'text-red-400'}`}>
-                {blockchainStatus.hasPrivateKey ? 'Configured' : 'Not set — add ADMIN_PRIVATE_KEY to backend .env'}
-              </p>
-            </div>
+
+            {(() => {
+              const bal = blockchainStatus.adminBalances;
+              const fmt = (v: string | null | undefined, digits = 4) => {
+                if (v == null || v === '') return '—';
+                const n = Number(v);
+                if (!Number.isFinite(n)) return v;
+                return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+              };
+              const payout = bal?.payout;
+              const treasury = bal?.treasury;
+              const same = bal?.sameWallet ?? true;
+              const xitSym = bal?.tokenSymbol || blockchainStatus.tokenSymbol || 'XIT';
+              const paySym = bal?.paymentSymbol || blockchainStatus.paymentTokenSymbol || 'USDT';
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-gray-900/50 rounded-xl p-4 border border-orange-500/20 space-y-3">
+                    <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider">
+                      Payout wallet {same ? '(treasury same)' : ''}
+                    </p>
+                    <p className="text-[11px] font-mono text-gray-500 truncate">
+                      {payout?.address || blockchainStatus.adminPayoutWallet || 'Not set'}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <p className="text-[10px] text-gray-500">{xitSym}</p>
+                        <p className="text-base font-bold text-white">{fmt(payout?.xit ?? blockchainStatus.onChainBalance)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-500">{paySym}</p>
+                        <p className="text-base font-bold text-emerald-400">{fmt(payout?.usdt)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-500">BNB</p>
+                        <p className="text-base font-bold text-yellow-400">{fmt(payout?.bnb, 6)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!same && (
+                    <div className="bg-gray-900/50 rounded-xl p-4 border border-cyan-500/20 space-y-3">
+                      <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">Treasury wallet</p>
+                      <p className="text-[11px] font-mono text-gray-500 truncate">
+                        {treasury?.address || blockchainStatus.adminTreasuryWallet || 'Not set'}
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <p className="text-[10px] text-gray-500">{xitSym}</p>
+                          <p className="text-base font-bold text-white">{fmt(treasury?.xit)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-500">{paySym}</p>
+                          <p className="text-base font-bold text-emerald-400">{fmt(treasury?.usdt)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-500">BNB</p>
+                          <p className="text-base font-bold text-yellow-400">{fmt(treasury?.bnb, 6)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-800 md:col-span-2 flex flex-wrap gap-4 items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-500">Admin Private Key (.env)</p>
+                      <p className={`text-sm font-semibold ${blockchainStatus.hasPrivateKey ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {blockchainStatus.hasPrivateKey ? 'Configured' : 'Not set — add ADMIN_PRIVATE_KEY to backend .env'}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-gray-500 max-w-md">
+                      XIT = members ko buy/ROI bhejne ke liye · {paySym} = buy payments · BNB = gas
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 

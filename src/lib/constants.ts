@@ -56,12 +56,16 @@ export const TRANSACTION_COLORS: Record<string, string> = {
 
 export const PLATFORM_MODES = ['demo', 'testnet', 'real'] as const;
 
+export const BSC_USDT_MAINNET = '0x55d398326f99059fF775485246999027B3197955';
+export const BSC_USDT_TESTNET = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
+
 export const BSC_TESTNET_PRESET: Record<string, string> = {
   chain_id: '97',
   chain_name: 'BSC Testnet',
   rpc_url: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
   block_explorer_url: 'https://testnet.bscscan.com',
-  payment_token_symbol: 'BNB',
+  payment_token_address: BSC_USDT_TESTNET,
+  payment_token_symbol: 'USDT',
   payment_decimals: '18',
 };
 
@@ -70,6 +74,7 @@ export const BSC_MAINNET_PRESET: Record<string, string> = {
   chain_name: 'BNB Smart Chain',
   rpc_url: 'https://bsc-dataseed.binance.org/',
   block_explorer_url: 'https://bscscan.com',
-  payment_token_symbol: 'BNB',
+  payment_token_address: BSC_USDT_MAINNET,
+  payment_token_symbol: 'USDT',
   payment_decimals: '18',
 };

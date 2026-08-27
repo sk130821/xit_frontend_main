@@ -22,6 +22,20 @@ export const BSC_MAINNET = {
   explorerUrl: 'https://bscscan.com',
 };
 
+/** Official USDT only — never accept random “USDT” contracts */
+export const OFFICIAL_USDT: Record<number, string> = {
+  56: '0x55d398326f99059fF775485246999027B3197955',
+  97: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
+};
+
+export function resolveOfficialUsdt(chainId: number): string {
+  const addr = OFFICIAL_USDT[Number(chainId)];
+  if (!addr) {
+    throw new Error(`No official USDT for chain ${chainId}. Use BNB Smart Chain (56).`);
+  }
+  return addr.toLowerCase();
+}
+
 export function shortenAddress(addr: string) {
   if (!addr) return '';
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -46,11 +60,24 @@ export async function switchNetwork(chainId: number, chainName: string, rpcUrl: 
           chainName,
           rpcUrls: [rpcUrl],
           nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+          blockExplorerUrls: chainId === 56
+            ? ['https://bscscan.com']
+            : ['https://testnet.bscscan.com'],
         }],
       });
     } else {
       throw err;
     }
+  }
+}
+
+/** Ensure wallet is on the platform chain (never Ethereum mainnet for XIT buys). */
+export async function ensurePlatformNetwork(chainId: number, chainName: string, rpcUrl: string) {
+  if (!window.ethereum) throw new Error('MetaMask not installed');
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const network = await provider.getNetwork();
+  if (Number(network.chainId) !== Number(chainId)) {
+    await switchNetwork(chainId, chainName, rpcUrl);
   }
 }
 
@@ -61,28 +88,57 @@ export async function connectWallet(): Promise<string> {
   return accounts[0];
 }
 
+/**
+ * Pay treasury in USDT (BEP-20) only — native BNB/ETH payments are disabled.
+ */
 export async function sendPayment(
   treasuryWallet: string,
   paymentAmount: string,
   paymentTokenAddress: string,
   paymentDecimals: number,
+  network?: { chainId: number; chainName: string; rpcUrl: string },
 ): Promise<string> {
   if (!window.ethereum) throw new Error('MetaMask not installed');
 
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
-
-  if (!paymentTokenAddress) {
-    const tx = await signer.sendTransaction({
-      to: treasuryWallet,
-      value: ethers.parseUnits(paymentAmount, paymentDecimals),
-    });
-    const receipt = await tx.wait();
-    return receipt!.hash;
+  if (!paymentTokenAddress || !/^0x[a-fA-F0-9]{40}$/i.test(paymentTokenAddress)) {
+    throw new Error(
+      'USDT payment token is not configured. Admin must set payment_token_address (BSC USDT).'
+    );
   }
 
-  const contract = new ethers.Contract(paymentTokenAddress, ERC20_ABI, signer);
+  if (network) {
+    await ensurePlatformNetwork(network.chainId, network.chainName, network.rpcUrl);
+  }
+
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const net = await provider.getNetwork();
+  const activeChainId = network ? Number(network.chainId) : Number(net.chainId);
+
+  if (network && Number(net.chainId) !== Number(network.chainId)) {
+    throw new Error(
+      `Wrong network. Switch MetaMask to ${network.chainName} (chain ${network.chainId}), not Ethereum.`
+    );
+  }
+
+  // Reject fake USDT — only official contract for this chain
+  const official = resolveOfficialUsdt(activeChainId);
+  if (paymentTokenAddress.toLowerCase() !== official) {
+    throw new Error(
+      `Fake USDT blocked. Only official token allowed: ${official}`
+    );
+  }
+
+  const signer = await provider.getSigner();
+  const contract = new ethers.Contract(official, ERC20_ABI, signer);
   const amountWei = ethers.parseUnits(paymentAmount, paymentDecimals);
+
+  const balance: bigint = await contract.balanceOf(await signer.getAddress());
+  if (balance < amountWei) {
+    throw new Error(
+      `Insufficient USDT balance. Need ${paymentAmount} USDT on BNB Smart Chain (BEP-20).`
+    );
+  }
+
   const tx = await contract.transfer(treasuryWallet, amountWei);
   const receipt = await tx.wait();
   return receipt!.hash;
