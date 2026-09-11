@@ -31,13 +31,15 @@ export function useXitBalances(): XitBalanceView {
     const demoSellable = Number(user.plan_sellable || 0);
     const demoLocked = Number(user.plan_locked || 0);
     const demoFree = Number(user.xit_balance || 0);
+    const lockRoiHeld = Number(user.lock_roi_held || 0);
+    const demoIncomeSellable = Math.max(0, demoFree - lockRoiHeld);
 
     if (!isBlockchainMode) {
       setWalletTotal(demoFree + demoSellable + demoLocked);
       setPlanSellable(demoSellable);
       setPlanLocked(demoLocked);
-      setIncomeBalance(demoFree);
-      setTotalSellable(demoFree + demoSellable);
+      setIncomeBalance(demoIncomeSellable);
+      setTotalSellable(demoSellable + demoIncomeSellable);
       return;
     }
 
@@ -69,7 +71,7 @@ export function useXitBalances(): XitBalanceView {
         );
         const sellable = demoSellable;
         const locked = demoLocked;
-        const income = Math.max(0, onChain - sellable - locked);
+        const income = Math.max(0, onChain - locked - lockRoiHeld);
         const sellTotal = Math.min(onChain, sellable + income);
 
         setWalletTotal(onChain);
@@ -89,7 +91,7 @@ export function useXitBalances(): XitBalanceView {
       setWalletTotal(fallback);
       setPlanSellable(demoSellable);
       setPlanLocked(demoLocked);
-      setIncomeBalance(Math.max(0, fallback - demoSellable - demoLocked));
+      setIncomeBalance(Math.max(0, fallback - demoLocked - lockRoiHeld));
       setTotalSellable(user.total_sellable ?? demoSellable);
     } finally {
       setLoading(false);

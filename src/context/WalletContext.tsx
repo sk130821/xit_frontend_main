@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '@/lib/api';
-import { connectWallet, switchNetwork } from '@/lib/web3';
+import { connectWallet, getActiveWalletAddress, switchNetwork } from '@/lib/web3';
 import type { BlockchainConfig } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 
@@ -9,9 +9,13 @@ interface WalletContextType {
   connectedAddress: string | null;
   connecting: boolean;
   isBlockchainMode: boolean;
+  /** Active MetaMask address vs account wallet_address (lowercase compare). */
+  walletMismatch: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
   refreshConfig: () => Promise<void>;
+  /** Ensure active wallet is linked before paying USDT. Returns paying address. */
+  ensurePayingWallet: () => Promise<string>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -37,11 +41,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     refreshConfig();
   }, [refreshConfig]);
 
+  // Prefer live MetaMask account; fall back to linked account for display
   useEffect(() => {
-    if (user?.wallet_address) {
-      setConnectedAddress(user.wallet_address);
-    }
+    let cancelled = false;
+    (async () => {
+      const active = await getActiveWalletAddress();
+      if (cancelled) return;
+      if (active) {
+        setConnectedAddress(active);
+      } else if (user?.wallet_address) {
+        setConnectedAddress(String(user.wallet_address).toLowerCase());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.wallet_address]);
+
+  const linkedAddress = (user?.wallet_address || '').toLowerCase() || null;
+  const activeLower = (connectedAddress || '').toLowerCase() || null;
+  const walletMismatch = !!(
+    isBlockchainMode &&
+    linkedAddress &&
+    activeLower &&
+    linkedAddress !== activeLower
+  );
 
   const connect = async () => {
     if (!config) await refreshConfig();
@@ -65,6 +89,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  /** Sync MetaMask active account → users.wallet_address before USDT leave the wallet. */
+  const ensurePayingWallet = async (): Promise<string> => {
+    let active = await getActiveWalletAddress();
+    if (!active) {
+      active = await connectWallet();
+    }
+    setConnectedAddress(active);
+
+    if (!user) throw new Error('Login required');
+
+    const linked = (user.wallet_address || '').toLowerCase();
+    if (linked !== active) {
+      await api.blockchain.linkWallet(active);
+      await refreshUser();
+    }
+
+    return active;
+  };
+
   const disconnect = () => {
     setConnectedAddress(null);
   };
@@ -76,9 +119,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (accounts.length === 0) {
         setConnectedAddress(null);
       } else {
-        setConnectedAddress(accounts[0]);
+        const next = String(accounts[0]).toLowerCase();
+        setConnectedAddress(next);
         if (user) {
-          api.blockchain.linkWallet(accounts[0]).then(() => refreshUser());
+          api.blockchain.linkWallet(next).then(() => refreshUser()).catch(() => {});
         }
       }
     };
@@ -89,7 +133,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   return (
     <WalletContext.Provider value={{
-      config, connectedAddress, connecting, isBlockchainMode, connect, disconnect, refreshConfig,
+      config,
+      connectedAddress,
+      connecting,
+      isBlockchainMode,
+      walletMismatch,
+      connect,
+      disconnect,
+      refreshConfig,
+      ensurePayingWallet,
     }}>
       {children}
     </WalletContext.Provider>

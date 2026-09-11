@@ -19,16 +19,38 @@ const API_URL = resolveApiUrl();
 const USER_TOKEN_KEY = 'xit_token';
 const ADMIN_TOKEN_KEY = 'xit_admin_token';
 
+export const AUTH_UNAUTHORIZED_EVENT = 'xit:auth-unauthorized';
+export const ADMIN_AUTH_UNAUTHORIZED_EVENT = 'xit:admin-auth-unauthorized';
+
+/** Member JWT in sessionStorage — tab/window band hone par session khatam (auto logout). */
 function getToken(): string | null {
-  return localStorage.getItem(USER_TOKEN_KEY);
+  if (typeof window === 'undefined') return null;
+  const session = sessionStorage.getItem(USER_TOKEN_KEY);
+  if (session) return session;
+  const legacy = localStorage.getItem(USER_TOKEN_KEY);
+  if (legacy) {
+    sessionStorage.setItem(USER_TOKEN_KEY, legacy);
+    localStorage.removeItem(USER_TOKEN_KEY);
+    return legacy;
+  }
+  return null;
 }
 
 function setToken(token: string) {
-  localStorage.setItem(USER_TOKEN_KEY, token);
+  sessionStorage.setItem(USER_TOKEN_KEY, token);
+  localStorage.removeItem(USER_TOKEN_KEY);
 }
 
 function clearToken() {
+  sessionStorage.removeItem(USER_TOKEN_KEY);
   localStorage.removeItem(USER_TOKEN_KEY);
+}
+
+function notifyUnauthorized(useAdmin: boolean) {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(useAdmin ? ADMIN_AUTH_UNAUTHORIZED_EVENT : AUTH_UNAUTHORIZED_EVENT)
+  );
 }
 
 function getAdminToken(): string | null {
@@ -58,6 +80,14 @@ async function request<T = any>(path: string, options: RequestInit = {}, useAdmi
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401) {
+      if (useAdmin) {
+        clearAdminToken();
+      } else {
+        clearToken();
+      }
+      notifyUnauthorized(useAdmin);
+    }
     throw new Error(data.error || `Request failed (${response.status})`);
   }
 
@@ -119,6 +149,11 @@ export const api = {
     claimRoi: (investmentId: number) =>
       request('/investments/claim-roi', { method: 'POST', body: JSON.stringify({ investmentId }) }),
     list: () => request('/investments/list'),
+    sellPreflight: (tokenAmount: number, investmentId?: number) =>
+      request<{ ok: boolean; usdtPayout?: number; paymentSymbol?: string; adminCharge?: number; netXit?: number; error?: string }>(
+        '/investments/sell-preflight',
+        { method: 'POST', body: JSON.stringify({ tokenAmount, investmentId }) },
+      ),
     sell: (tokenAmount: number, txHash?: string, investmentId?: number) =>
       request('/investments/sell', {
         method: 'POST',
@@ -204,5 +239,8 @@ export const api = {
       request('/blockchain/link-wallet', { method: 'POST', body: JSON.stringify({ walletAddress }) }),
     verifyBuy: (txHash: string, tokenAmount: number, planType: 'lock' | 'flexible') =>
       request('/blockchain/verify-buy', { method: 'POST', body: JSON.stringify({ txHash, tokenAmount, planType }) }),
+    /** Complete purchase from an already-paid USDT tx (no new payment) */
+    completeBuy: (txHash: string, tokenAmount: number, planType: 'lock' | 'flexible') =>
+      request('/blockchain/complete-buy', { method: 'POST', body: JSON.stringify({ txHash, tokenAmount, planType }) }),
   },
 };

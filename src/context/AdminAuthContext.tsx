@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { api, ADMIN_AUTH_UNAUTHORIZED_EVENT } from '@/lib/api';
 import type { Admin } from '@/types';
 
 interface AdminAuthContextType {
@@ -33,6 +33,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchAdmin();
+  }, []);
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setAdmin(null);
+    };
+    window.addEventListener(ADMIN_AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(ADMIN_AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
   const refreshAdmin = async () => {

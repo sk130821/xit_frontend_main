@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Wallet, Shield, Home, UserCheck, AlertCircle, Loader2, ExternalLink } from 'lucide-react';
+import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
+import { Wallet, Shield, Home, UserCheck, AlertCircle, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import BrandLogo from '@/components/BrandLogo';
@@ -37,9 +37,19 @@ export default function AuthPage() {
   } | null>(null);
   const [loadingKind, setLoadingKind] = useState<WalletKind | null>(null);
   const [error, setError] = useState('');
+  const [flash, setFlash] = useState('');
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, loginWithToken } = useAuth();
+
+  useEffect(() => {
+    const msg = (location.state as { flash?: string } | null)?.flash;
+    if (msg) {
+      setFlash(msg);
+      navigate(location.pathname + location.search, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const refFromUrl = (searchParams.get('ref') || '').trim().toUpperCase();
 
@@ -268,6 +278,13 @@ export default function AuthPage() {
               >
                 {loadingKind ? 'Connecting…' : 'Confirm sponsor & enter dashboard'}
               </button>
+            </div>
+          )}
+
+          {flash && (
+            <div className="flex items-start gap-2 text-sm text-emerald-200 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2">
+              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+              <span>{flash}</span>
             </div>
           )}
 

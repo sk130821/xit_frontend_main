@@ -226,7 +226,8 @@ export default function AdminBlockchain() {
                       </p>
                     </div>
                     <p className="text-[11px] text-gray-500 max-w-md">
-                      XIT = members ko buy/ROI bhejne ke liye · {paySym} = buy payments · BNB = gas
+                      XIT = members ko buy/ROI bhejne ke liye · {paySym} = buy payments · BNB = gas.
+                      Failed buy (USDT paid, XIT not received): member Buy page → “Already paid USDT? Complete purchase” with same amount/plan + tx hash — no second payment.
                     </p>
                   </div>
                 </div>

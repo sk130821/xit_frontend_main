@@ -58,6 +58,8 @@ export const PLATFORM_MODES = ['demo', 'testnet', 'real'] as const;
 
 export const BSC_USDT_MAINNET = '0x55d398326f99059fF775485246999027B3197955';
 export const BSC_USDT_TESTNET = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
+/** Client XIT BEP-20 on BSC mainnet */
+export const XIT_BEP20_MAINNET = '0x5bd95D6605cE909D6455D487BEaAD10d3f8F7A17';
 
 export const BSC_TESTNET_PRESET: Record<string, string> = {
   chain_id: '97',
@@ -77,4 +79,5 @@ export const BSC_MAINNET_PRESET: Record<string, string> = {
   payment_token_address: BSC_USDT_MAINNET,
   payment_token_symbol: 'USDT',
   payment_decimals: '18',
+  bep20_contract_address: XIT_BEP20_MAINNET,
 };

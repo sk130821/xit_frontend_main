@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowDownToLine,
   Check,
@@ -17,7 +18,8 @@ import type { Investment } from '@/types';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
 
 export default function SellTokens() {
-  const { user, refreshUser } = useAuth();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { config, connectedAddress, isBlockchainMode, connect, connecting } = useWallet();
   const balances = useXitBalances();
   const [amount, setAmount] = useState('');
@@ -40,8 +42,12 @@ export default function SellTokens() {
         api.investments.list(),
         api.user.settings(),
       ]);
-      const activeInv = (invData as Investment[]).filter((i) => i.status === 'active');
-      setInvestments(activeInv);
+      const sellableInv = (invData as Investment[]).filter(
+        (i) =>
+          i.status === 'active' ||
+          (i.status === 'completed' && i.plan_type === 'lock' && Number(i.sellable_amount) > 0),
+      );
+      setInvestments(sellableInv);
       setSettings(settingsData as Record<string, string>);
     } catch (err) {
       console.error('Load error:', err);
@@ -110,6 +116,8 @@ export default function SellTokens() {
     try {
       let result: any;
       if (isBlockchainMode) {
+        await api.investments.sellPreflight(sellAmt, investmentId);
+
         const adminWallet = config!.adminPayoutWallet || config!.adminTreasuryWallet!;
         const tokenTxHash = await sendXitTokens(
           adminWallet,
@@ -131,13 +139,9 @@ export default function SellTokens() {
       if (result.explorerUrl) {
         msg += ' Payment sent to your wallet on-chain.';
       }
-      setSuccess(msg);
-      setAmount('');
-      setInvSellAmount('');
-      setSellingInvestment(null);
-      await refreshUser();
-      await loadData();
-      await balances.refresh();
+      signOut();
+      navigate('/login', { replace: true, state: { flash: msg } });
+      return;
     } catch (err: any) {
       setError(err.message || 'Failed to sell tokens');
     } finally {
@@ -417,7 +421,7 @@ export default function SellTokens() {
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />10% admin charge on every sale</li>
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Sell ROI/income from the top form, or sell from a specific investment card</li>
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Flexible plan: 80% sellable per investment</li>
-              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock plan (&lt;100 XIT): not sellable — ROI only</li>
+              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock plan: ROI locked until 3X complete — then sellable</li>
               {!isBlockchainMode && (
                 <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Demo mode: net USDT credited to your USDT wallet</li>
               )}

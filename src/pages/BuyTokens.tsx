@@ -26,7 +26,16 @@ const QUICK_AMOUNTS = [10, 50, 100, 500, 1000];
 
 export default function BuyTokens() {
   const { user, refreshUser } = useAuth();
-  const { config, connectedAddress, isBlockchainMode, connect, connecting, refreshConfig } = useWallet();
+  const {
+    config,
+    connectedAddress,
+    isBlockchainMode,
+    connect,
+    connecting,
+    refreshConfig,
+    walletMismatch,
+    ensurePayingWallet,
+  } = useWallet();
   const balances = useXitBalances();
   const [selectedPlan, setSelectedPlan] = useState<'lock' | 'flexible' | null>(null);
   const [amount, setAmount] = useState('');
@@ -35,6 +44,9 @@ export default function BuyTokens() {
   const [success, setSuccess] = useState('');
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [lastTxHash, setLastTxHash] = useState('');
+  const [recoverTxHash, setRecoverTxHash] = useState('');
+  const [showRecover, setShowRecover] = useState(false);
+  const [pendingPayTx, setPendingPayTx] = useState('');
 
   useEffect(() => {
     loadData();
@@ -122,6 +134,7 @@ export default function BuyTokens() {
     setError('');
     setSuccess('');
     setLastTxHash('');
+    setPendingPayTx('');
 
     if (!config?.adminTreasuryWallet) {
       setError('Admin treasury wallet not configured. Contact admin.');
@@ -130,11 +143,6 @@ export default function BuyTokens() {
 
     if (!config?.paymentTokenAddress) {
       setError('USDT payment is not configured. Admin must set BSC USDT (payment_token_address).');
-      return;
-    }
-
-    if (!connectedAddress) {
-      setError('Connect MetaMask first');
       return;
     }
 
@@ -149,8 +157,12 @@ export default function BuyTokens() {
     }
 
     setLoading(true);
+    let paidTxHash = '';
     try {
-      const txHash = await sendPayment(
+      // Link MetaMask active account BEFORE USDT leaves the wallet
+      const payingFrom = await ensurePayingWallet();
+
+      paidTxHash = await sendPayment(
         config.adminTreasuryWallet,
         paymentAmount.toFixed(8),
         config.paymentTokenAddress,
@@ -159,20 +171,74 @@ export default function BuyTokens() {
           chainId: config.chainId,
           chainName: config.chainName,
           rpcUrl: config.rpcUrl,
-        }
+        },
+        payingFrom
       );
+      setPendingPayTx(paidTxHash);
 
-      const result: any = await api.blockchain.verifyBuy(txHash, tokenAmount, effectivePlan);
-      setLastTxHash(result.tokenPayoutTxHash || txHash);
+      const result: any = await api.blockchain.verifyBuy(paidTxHash, tokenAmount, effectivePlan);
+      setLastTxHash(result.tokenPayoutTxHash || paidTxHash);
+      setPendingPayTx('');
+      const syncNote = result.walletSynced
+        ? ` Wallet linked to payer ${shortenAddress(result.payerAddress)}.`
+        : '';
       setSuccess(
-        `On-chain purchase confirmed! ${tokenAmount} XIT sent to your MetaMask. Invested in ${plan!.name}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
+        `On-chain purchase confirmed! ${tokenAmount} XIT sent to ${shortenAddress(result.payerAddress || payingFrom)}. Invested in ${plan!.name}. Total return: ${Number(result.investment?.totalReturn).toFixed(2)} XIT.${
           result.accountActivated ? ' Your account is now active!' : ''
-        }${result.referralBonus > 0 ? ` Referral bonus: ${Number(result.referralBonus).toFixed(2)} XIT` : ''}`
+        }${result.referralBonus > 0 ? ` Referral bonus: ${Number(result.referralBonus).toFixed(2)} XIT` : ''}${syncNote}`
       );
       setAmount('');
       await refreshUser();
     } catch (err: any) {
-      setError(err.message || 'Blockchain purchase failed');
+      if (paidTxHash) {
+        setPendingPayTx(paidTxHash);
+        setRecoverTxHash(paidTxHash);
+        setShowRecover(true);
+        setError(
+          `${err.message || 'Purchase failed after USDT payment'}. USDT tx: ${paidTxHash}. Use Complete purchase below — do not pay again.`
+        );
+      } else {
+        setError(err.message || 'Blockchain purchase failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteBuy = async () => {
+    setError('');
+    setSuccess('');
+
+    const tx = recoverTxHash.trim() || pendingPayTx.trim();
+    if (!tx || !/^0x[a-fA-F0-9]{64}$/.test(tx)) {
+      setError('Enter a valid USDT payment transaction hash (0x…)');
+      return;
+    }
+    if (!effectivePlan) {
+      setError('Select the same plan you paid for');
+      return;
+    }
+    if (tokenAmount < minAmount) {
+      setError(`Enter the same token amount you paid for (min ${minAmount})`);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result: any = await api.blockchain.completeBuy(tx, tokenAmount, effectivePlan);
+      setLastTxHash(result.tokenPayoutTxHash || tx);
+      setPendingPayTx('');
+      setRecoverTxHash('');
+      setShowRecover(false);
+      setSuccess(
+        `Purchase completed from existing payment! ${tokenAmount} XIT sent to ${shortenAddress(result.payerAddress || '')}. Invested in ${plan!.name}.${
+          result.accountActivated ? ' Account activated.' : ''
+        }`
+      );
+      setAmount('');
+      await refreshUser();
+    } catch (err: any) {
+      setError(err.message || 'Could not complete purchase from this tx');
     } finally {
       setLoading(false);
     }
@@ -259,6 +325,45 @@ export default function BuyTokens() {
           >
             {connecting ? 'Connecting...' : 'Connect Wallet'}
           </button>
+        </div>
+      )}
+
+      {isBlockchainMode && connectedAddress && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-900/60 border border-gray-800 rounded-2xl px-5 py-3 text-sm">
+          <div className="flex items-center gap-2 text-gray-300">
+            <Wallet className="w-4 h-4 text-emerald-400" />
+            <span className="text-gray-500">Paying from</span>
+            <span className="font-mono text-emerald-300">{shortenAddress(connectedAddress)}</span>
+            {user?.wallet_address &&
+              user.wallet_address.toLowerCase() === connectedAddress.toLowerCase() && (
+                <span className="text-[10px] uppercase tracking-wider text-emerald-500/80 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                  Linked
+                </span>
+              )}
+          </div>
+          {walletMismatch && (
+            <button
+              type="button"
+              onClick={() => ensurePayingWallet().catch((e: any) => setError(e.message))}
+              className="text-xs font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2"
+            >
+              Link this MetaMask account
+            </button>
+          )}
+        </div>
+      )}
+
+      {isBlockchainMode && walletMismatch && (
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-2xl px-5 py-4 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-amber-200">Wallet mismatch</p>
+            <p className="text-amber-400/80 mt-0.5">
+              Account linked: <span className="font-mono">{shortenAddress(user?.wallet_address || '')}</span>
+              {' · '}MetaMask: <span className="font-mono">{shortenAddress(connectedAddress || '')}</span>.
+              We will auto-link your MetaMask account before USDT payment so tokens go to the payer.
+            </p>
+          </div>
         </div>
       )}
 
@@ -415,8 +520,16 @@ export default function BuyTokens() {
               </div>
 
               {isBlockchainMode && config?.adminTreasuryWallet && (
-                <div className="text-xs text-gray-500 bg-gray-900/50 border border-gray-800 rounded-xl p-3 font-mono">
-                  Treasury: <span className="text-gray-300">{shortenAddress(config.adminTreasuryWallet)}</span>
+                <div className="text-xs text-gray-500 bg-gray-900/50 border border-gray-800 rounded-xl p-3 space-y-1">
+                  <p>
+                    Treasury: <span className="text-gray-300 font-mono">{shortenAddress(config.adminTreasuryWallet)}</span>
+                  </p>
+                  {connectedAddress && (
+                    <p>
+                      You pay from:{' '}
+                      <span className="text-emerald-300 font-mono">{shortenAddress(connectedAddress)}</span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -439,6 +552,40 @@ export default function BuyTokens() {
                   </>
                 )}
               </button>
+
+              {isBlockchainMode && (
+                <div className="pt-2 border-t border-gray-800/80">
+                  <button
+                    type="button"
+                    onClick={() => setShowRecover((v) => !v)}
+                    className="text-xs text-cyan-400/90 hover:text-cyan-300 underline underline-offset-2"
+                  >
+                    {showRecover ? 'Hide' : 'Already paid USDT? Complete purchase'}
+                  </button>
+                  {(showRecover || pendingPayTx) && (
+                    <div className="mt-3 space-y-3 bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-4">
+                      <p className="text-xs text-cyan-200/80 leading-relaxed">
+                        Paste your USDT payment tx hash. Enter the same token amount and plan — no second payment.
+                      </p>
+                      <input
+                        type="text"
+                        value={recoverTxHash}
+                        onChange={(e) => setRecoverTxHash(e.target.value.trim())}
+                        placeholder="0x… USDT tx hash"
+                        className="w-full bg-gray-900/70 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-xs font-mono focus:border-cyan-500 outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCompleteBuy}
+                        disabled={loading || !effectivePlan || tokenAmount < minAmount}
+                        className="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white text-sm font-semibold py-2.5 rounded-xl disabled:opacity-50"
+                      >
+                        Complete purchase (no re-pay)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

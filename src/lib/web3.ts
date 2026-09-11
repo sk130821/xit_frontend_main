@@ -85,7 +85,16 @@ export async function connectWallet(): Promise<string> {
   if (!window.ethereum) throw new Error('MetaMask not installed');
   const provider = new ethers.BrowserProvider(window.ethereum);
   const accounts = await provider.send('eth_requestAccounts', []);
-  return accounts[0];
+  return String(accounts[0]).toLowerCase();
+}
+
+/** Active injected wallet address (lowercase), or null if not connected. */
+export async function getActiveWalletAddress(): Promise<string | null> {
+  if (!window.ethereum) return null;
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const accounts = await provider.send('eth_accounts', []);
+  if (!accounts?.[0]) return null;
+  return String(accounts[0]).toLowerCase();
 }
 
 /**
@@ -97,6 +106,7 @@ export async function sendPayment(
   paymentTokenAddress: string,
   paymentDecimals: number,
   network?: { chainId: number; chainName: string; rpcUrl: string },
+  expectedPayer?: string | null,
 ): Promise<string> {
   if (!window.ethereum) throw new Error('MetaMask not installed');
 
@@ -129,10 +139,17 @@ export async function sendPayment(
   }
 
   const signer = await provider.getSigner();
+  const payer = (await signer.getAddress()).toLowerCase();
+  if (expectedPayer && payer !== String(expectedPayer).toLowerCase()) {
+    throw new Error(
+      `Wrong wallet in MetaMask. Switch to ${expectedPayer} before paying USDT.`
+    );
+  }
+
   const contract = new ethers.Contract(official, ERC20_ABI, signer);
   const amountWei = ethers.parseUnits(paymentAmount, paymentDecimals);
 
-  const balance: bigint = await contract.balanceOf(await signer.getAddress());
+  const balance: bigint = await contract.balanceOf(payer);
   if (balance < amountWei) {
     throw new Error(
       `Insufficient USDT balance. Need ${paymentAmount} USDT on BNB Smart Chain (BEP-20).`

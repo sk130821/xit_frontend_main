@@ -13,6 +13,7 @@ export interface User {
   total_purchased?: number;
   plan_sellable?: number;
   plan_locked?: number;
+  lock_roi_held?: number;
   platform_mode?: string;
   on_chain_xit_balance?: number | null;
   total_sellable?: number | null;
