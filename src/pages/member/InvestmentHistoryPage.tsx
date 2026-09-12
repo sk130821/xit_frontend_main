@@ -4,6 +4,7 @@ import { History, Clock, Coins, Check, AlertCircle, Search, Calendar, ArrowRight
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Investment } from '@/types';
+import { planTypeLabel, planTypeBadgeClass } from '@/lib/constants';
 import {
   PageHero,
   HeroStat,
@@ -120,7 +121,7 @@ export default function InvestmentHistoryPage() {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-2">Plan</p>
-            <FilterChips options={[{ id: 'all', label: 'All Plans' }, { id: 'lock', label: 'Lock 3X' }, { id: 'flexible', label: 'Flexible 2X' }]} value={planFilter} onChange={setPlanFilter} accent="purple" />
+            <FilterChips options={[{ id: 'all', label: 'All Plans' }, { id: 'lock', label: 'Lock 3X' }, { id: 'flexible', label: 'Flexible 2X' }, { id: 'flexible_lock', label: 'Flexible Lock' }]} value={planFilter} onChange={setPlanFilter} accent="purple" />
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-2">Status</p>
@@ -146,8 +147,8 @@ export default function InvestmentHistoryPage() {
                   <div key={inv.id} className="relative overflow-hidden rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900/60 to-[#111827] p-5 hover:border-orange-500/20 transition-all">
                     <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${inv.plan_type === 'lock' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'}`}>
-                          {inv.plan_type === 'lock' ? 'Lock 3X → 400' : 'Flexible 2X → 300'}
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${planTypeBadgeClass(inv.plan_type)}`}>
+                          {planTypeLabel(inv.plan_type)}
                         </span>
                         <span className="text-sm text-white font-bold tabular-nums">{Number(inv.token_amount).toFixed(0)} XIT</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${inv.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : inv.status === 'completed' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-700 text-gray-400'}`}>

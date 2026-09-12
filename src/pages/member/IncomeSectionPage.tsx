@@ -14,7 +14,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Transaction } from '@/types';
-import { TRANSACTION_LABELS, TRANSACTION_COLORS } from '@/lib/constants';
+import { TRANSACTION_LABELS, TRANSACTION_COLORS, planTypeLabel, planTypeBadgeClass, planTypeShortLabel } from '@/lib/constants';
 import {
   PageHero,
   HeroStat,
@@ -52,6 +52,7 @@ export function IncomeListSection({
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [roiSource, setRoiSource] = useState('all');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -79,15 +80,16 @@ export function IncomeListSection({
       const d = new Date(tx.created_at);
       const matchFrom = !dateFrom || d >= new Date(dateFrom);
       const matchTo = !dateTo || d <= new Date(dateTo + 'T23:59:59');
-      return matchSearch && matchFrom && matchTo;
+      const matchSource = roiSource === 'all' || tx.plan_type === roiSource;
+      return matchSearch && matchFrom && matchTo && matchSource;
     });
-  }, [allTx, search, dateFrom, dateTo]);
+  }, [allTx, search, dateFrom, dateTo, roiSource]);
 
   const total = filtered.reduce((s, t) => s + Number(t.amount), 0);
   const { items, total: totalCount, totalPages, page: safePage } = paginate(filtered, page, PAGE_SIZE);
-  const hasFilters = search.trim() !== '' || dateFrom !== '' || dateTo !== '';
+  const hasFilters = search.trim() !== '' || dateFrom !== '' || dateTo !== '' || roiSource !== 'all';
 
-  useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, filter]);
+  useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, filter, roiSource]);
 
   return (
     <div className={embedded ? 'space-y-4' : 'space-y-6'}>
@@ -97,7 +99,7 @@ export function IncomeListSection({
 
       <FilterPanel
         hasActiveFilters={hasFilters}
-        onClear={() => { setSearch(''); setDateFrom(''); setDateTo(''); }}
+        onClear={() => { setSearch(''); setDateFrom(''); setDateTo(''); setRoiSource('all'); }}
       >
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
@@ -123,6 +125,22 @@ export function IncomeListSection({
             </div>
           </div>
         </div>
+        {filter === 'roi' && (
+          <div className="mt-3">
+            <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-2">ROI from</p>
+            <FilterChips
+              options={[
+                { id: 'all', label: 'All Plans' },
+                { id: 'flexible', label: 'Flexible' },
+                { id: 'flexible_lock', label: 'Flexible Lock' },
+                { id: 'lock', label: 'Lock Plan' },
+              ]}
+              value={roiSource}
+              onChange={setRoiSource}
+              accent="emerald"
+            />
+          </div>
+        )}
       </FilterPanel>
 
       {embedded && (
@@ -143,10 +161,22 @@ export function IncomeListSection({
               {items.map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-800/20 transition-colors">
                   <div className="min-w-0 flex-1 mr-4">
-                    <span className={`inline-flex text-xs font-semibold px-2 py-0.5 rounded-lg mb-1 ${TRANSACTION_COLORS[tx.type] || 'text-gray-400'} bg-gray-900/60`}>
-                      {TRANSACTION_LABELS[tx.type] || tx.type}
-                    </span>
-                    <p className="text-xs text-gray-500 truncate">{tx.description}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className={`inline-flex text-xs font-semibold px-2 py-0.5 rounded-lg ${TRANSACTION_COLORS[tx.type] || 'text-gray-400'} bg-gray-900/60`}>
+                        {TRANSACTION_LABELS[tx.type] || tx.type}
+                      </span>
+                      {tx.type === 'roi' && tx.plan_type && (
+                        <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full ${planTypeBadgeClass(tx.plan_type)}`}>
+                          {planTypeShortLabel(tx.plan_type)}
+                          {tx.investment_daily_roi != null ? ` · ${tx.investment_daily_roi}%` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate">
+                      {tx.type === 'roi' && tx.plan_type
+                        ? `${planTypeLabel(tx.plan_type)}${tx.investment_token_amount ? ` · ${Number(tx.investment_token_amount).toFixed(0)} XIT plan` : ''}`
+                        : tx.description}
+                    </p>
                     <p className="text-[11px] text-gray-600 mt-0.5">{new Date(tx.created_at).toLocaleString('en-GB')}</p>
                   </div>
                   <span className={`text-sm font-bold tabular-nums shrink-0 ${TRANSACTION_COLORS[tx.type] || 'text-emerald-400'}`}>

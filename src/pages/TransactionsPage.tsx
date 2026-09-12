@@ -12,7 +12,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import type { Transaction } from '@/types';
-import { TRANSACTION_LABELS, TRANSACTION_COLORS } from '@/lib/constants';
+import { TRANSACTION_LABELS, TRANSACTION_COLORS, planTypeLabel, planTypeShortLabel } from '@/lib/constants';
 
 const TYPE_FILTERS = [
   { id: 'all', label: 'All' },
@@ -290,7 +290,14 @@ export default function TransactionsPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="text-sm text-gray-400">{tx.description || '-'}</span>
+                        <span className="text-sm text-gray-400">
+                          {tx.type === 'roi' && tx.plan_type
+                            ? `${planTypeLabel(tx.plan_type)}${tx.investment_token_amount ? ` · ${Number(tx.investment_token_amount).toFixed(0)} XIT` : ''}`
+                            : tx.description || '-'}
+                        </span>
+                        {tx.type === 'roi' && tx.plan_type && (
+                          <p className="text-[11px] text-gray-600 mt-0.5">{planTypeShortLabel(tx.plan_type)}</p>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         <span className={`text-sm font-semibold tabular-nums ${DEBIT_TYPES.has(tx.type) ? 'text-red-400' : TRANSACTION_COLORS[tx.type] || 'text-emerald-400'}`}>

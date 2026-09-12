@@ -326,6 +326,11 @@ function PlanBadges({ types }: { types: string[] }) {
           Flexible 2X
         </span>
       )}
+      {types.includes('flexible_lock') && (
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200 font-medium">
+          Flexible Lock
+        </span>
+      )}
     </div>
   );
 }

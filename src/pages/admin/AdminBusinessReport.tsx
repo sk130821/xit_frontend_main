@@ -241,7 +241,7 @@ export default function AdminBusinessReport() {
               <AdminSummaryCard label="Sellable in Plans" value={`${fmtNum(Number(report.investments.total_sellable))} XIT`} icon={Unlock} color="cyan" />
               <AdminSummaryCard label="Locked in Plans" value={`${fmtNum(Number(report.investments.total_locked))} XIT`} icon={Lock} color="purple" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <PlanCard
                 name="Lock Plan (4X)"
                 count={Number(report.investments.lock_count)}
@@ -253,6 +253,12 @@ export default function AdminBusinessReport() {
                 count={Number(report.investments.flex_count)}
                 amount={Number(report.investments.flex_amount)}
                 color="blue"
+              />
+              <PlanCard
+                name="Flexible Lock"
+                count={Number(report.investments.flex_lock_count || 0)}
+                amount={Number(report.investments.flex_lock_amount || 0)}
+                color="amber"
               />
             </div>
             {(report.investments.plan_breakdown as any[])?.length > 0 && (
@@ -270,7 +276,7 @@ export default function AdminBusinessReport() {
                   <tbody>
                     {(report.investments.plan_breakdown as any[]).map((p, i) => (
                       <tr key={i} className="border-b border-gray-800/40">
-                        <td className="px-4 py-2.5 capitalize text-white">{p.plan_type}</td>
+                        <td className="px-4 py-2.5 text-white">{p.plan_type === 'flexible_lock' ? 'Flexible Lock' : p.plan_type}</td>
                         <td className="px-4 py-2.5 capitalize text-gray-400">{p.status}</td>
                         <td className="px-4 py-2.5 text-right text-gray-300">{p.count}</td>
                         <td className="px-4 py-2.5 text-right text-emerald-400 tabular-nums">{fmtNum(p.amount)} XIT</td>
@@ -420,10 +426,11 @@ function ShareBar({ label, pct, color }: { label: string; pct: number; color: st
   );
 }
 
-function PlanCard({ name, count, amount, color }: { name: string; count: number; amount: number; color: 'purple' | 'blue' }) {
+function PlanCard({ name, count, amount, color }: { name: string; count: number; amount: number; color: 'purple' | 'blue' | 'amber' }) {
   const styles = {
     purple: 'border-purple-500/25 from-purple-600/10',
     blue: 'border-blue-500/25 from-blue-600/10',
+    amber: 'border-amber-500/25 from-amber-600/10',
   };
   return (
     <div className={`rounded-2xl border bg-gradient-to-br to-[#111827] p-5 ${styles[color]}`}>

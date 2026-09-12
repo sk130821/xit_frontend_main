@@ -48,7 +48,7 @@ export function buildSettingsList(s: Record<string, string>): SettingItem[] {
     { setting_key: 'min_purchase', setting_value: s.min_purchase || '1', description: 'Minimum token purchase amount' },
     { setting_key: 'min_investment', setting_value: s.min_investment || '1', description: 'Minimum investment amount' },
     { setting_key: 'flexible_min_tokens', setting_value: s.flexible_min_tokens || '100', description: 'Minimum tokens for Flexible plan and MLM income' },
-    { setting_key: 'min_wallet_xit_for_income', setting_value: s.min_wallet_xit_for_income || '100', description: 'Minimum XIT in member wallet to receive ROI and level income' },
+    { setting_key: 'min_wallet_xit_for_income', setting_value: s.min_wallet_xit_for_income || '100', description: 'Minimum XIT in member wallet to receive level and reward income (ROI always pays)' },
     { setting_key: 'admin_charge_percent', setting_value: s.admin_charge_percent, description: 'Admin charge percentage on token sales' },
   ];
 }

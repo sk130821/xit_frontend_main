@@ -22,7 +22,7 @@ const faqs = [
   {
     category: 'Investment Plans',
     questions: [
-      { q: 'What is the difference between Lock Plan and Flexible Plan?', a: 'Lock Plan gives 3X return with 0.82% daily ROI but all tokens are locked for 365 days. Flexible Plan gives 2X return with 0.53% daily ROI, where 80% of tokens are sellable immediately and only 20% are locked for 1 year.' },
+      { q: 'What is the difference between Lock Plan and Flexible Plan?', a: 'Lock Plan gives 3X return with 0.82% daily ROI but all tokens are locked for 365 days. Flexible Plan: 80% is sellable with 0.53% daily ROI. The other 20% becomes Flexible Lock (shown separately in your member panel — not Lock Plan) with 0.82% daily ROI and 4X after 1 year; that 20% and its ROI are not sellable until then.' },
       { q: 'What is the minimum investment amount?', a: 'The minimum investment for both plans is 100 XIT tokens.' },
       { q: 'How does daily ROI work?', a: 'ROI accrues daily based on your investment amount and the plan\'s daily rate. You can claim your ROI once per day for each active investment by clicking the "Claim ROI" button on the Invest page.' },
     ],

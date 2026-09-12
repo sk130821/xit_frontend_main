@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useXitBalances } from '@/hooks/useXitBalances';
 import { useWallet } from '@/context/WalletContext';
+import { api } from '@/lib/api';
+import type { Investment } from '@/types';
 import {
   Wallet,
   Coins,
@@ -18,9 +20,11 @@ export default function MyTokensPage() {
   const { user, refreshUser } = useAuth();
   const { isBlockchainMode } = useWallet();
   const balances = useXitBalances();
+  const [investments, setInvestments] = useState<Investment[]>([]);
 
   useEffect(() => {
     refreshUser().then(() => balances.refresh());
+    api.investments.list().then((data) => setInvestments(data as Investment[])).catch(() => {});
   }, []);
 
   const purchased = Number(user?.total_purchased || 0);
@@ -28,6 +32,17 @@ export default function MyTokensPage() {
   const usdtWallet = Number(user?.wallet_balance || 0);
   const { walletTotal, planLocked, planSellable, incomeBalance } = balances;
   const currentTotal = walletTotal;
+
+  const planSum = (type: Investment['plan_type']) => {
+    const rows = investments.filter((i) => i.plan_type === type && i.status !== 'cancelled');
+    return {
+      tokens: rows.reduce((s, i) => s + Number(i.token_amount || 0), 0),
+      roi: rows.reduce((s, i) => s + Number(i.roi_received || 0), 0),
+    };
+  };
+  const flex = planSum('flexible');
+  const lock = planSum('lock');
+  const flexLock = planSum('flexible_lock');
 
   const purchaseShare = currentTotal > 0 ? (purchased / (purchased + earned || 1)) * 100 : 0;
   const earnShare = currentTotal > 0 ? (earned / (purchased + earned || 1)) * 100 : 0;
@@ -164,6 +179,12 @@ export default function MyTokensPage() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TokenPlanCard title="Flexible" rate="0.53%" tokens={flex.tokens} roi={flex.roi} border="border-blue-500/25" roiClass="text-blue-300" />
+        <TokenPlanCard title="Lock" rate="0.82%" tokens={lock.tokens} roi={lock.roi} border="border-purple-500/25" roiClass="text-purple-300" />
+        <TokenPlanCard title="Flexible Lock" rate="0.82%" tokens={flexLock.tokens} roi={flexLock.roi} border="border-amber-500/25" roiClass="text-amber-200" />
+      </div>
+
       {/* Quick stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <MiniStat label="Total Purchased" value={purchased} hint="Total tokens ever bought" accent="text-blue-400" barColor="bg-blue-500" />
@@ -189,6 +210,40 @@ export default function MyTokensPage() {
           </div>
         </dl>
       </div>
+    </div>
+  );
+}
+
+function TokenPlanCard({
+  title,
+  rate,
+  tokens,
+  roi,
+  border,
+  roiClass,
+}: {
+  title: string;
+  rate: string;
+  tokens: number;
+  roi: number;
+  border: string;
+  roiClass: string;
+}) {
+  return (
+    <div className={`rounded-2xl border bg-[#111827] p-5 ${border}`}>
+      <p className="text-sm font-semibold text-white">{title}</p>
+      <p className="text-[11px] text-gray-500 mb-4">Daily ROI {rate}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Tokens</p>
+          <p className="text-xl font-bold text-white tabular-nums">{tokens.toFixed(2)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">ROI earned</p>
+          <p className={`text-xl font-bold tabular-nums ${roiClass}`}>{roi.toFixed(2)}</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-500 mt-3">Together {(tokens + roi).toFixed(2)} XIT</p>
     </div>
   );
 }

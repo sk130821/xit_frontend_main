@@ -31,7 +31,7 @@ export interface Admin {
 export interface Investment {
   id: number;
   user_id: number;
-  plan_type: 'lock' | 'flexible';
+  plan_type: 'lock' | 'flexible' | 'flexible_lock';
   token_amount: number;
   total_return: number;
   daily_roi_rate: number;
@@ -58,6 +58,9 @@ export interface Transaction {
   chain_id: number | null;
   on_chain_status: 'pending' | 'confirmed' | 'failed' | 'demo' | null;
   created_at: string;
+  plan_type?: 'lock' | 'flexible' | 'flexible_lock' | null;
+  investment_token_amount?: number | null;
+  investment_daily_roi?: number | null;
 }
 
 export interface BlockchainConfig {

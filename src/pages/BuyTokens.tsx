@@ -453,8 +453,8 @@ export default function BuyTokens() {
             dailyRoi="0.53%"
             totalReturn="300 total (100 + 200 profit)"
             sellable="80% sellable anytime"
-            lockLabel={`20% locked · ${lockDaysFlexible} days`}
-            note="80% sellable anytime, 20% locked. 10% admin charge on sales."
+            lockLabel={`20% Flexible Lock · ${lockDaysFlexible} days · 0.82% · 4X`}
+            note="80% sellable. 20% auto Flexible Lock (not Lock Plan) — 0.82% ROI, 4X after 1 year, not sellable until then."
             gradient="from-blue-600/20 via-blue-900/10 to-[#111827]"
             accent="blue"
           />

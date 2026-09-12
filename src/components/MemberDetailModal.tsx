@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { AdminMemberDetail } from '@/types';
+import { planTypeLabel } from '@/lib/constants';
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -232,7 +233,7 @@ export default function MemberDetailModal({
                       <div key={inv.id} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="text-white font-medium capitalize">{inv.plan_type} Plan</p>
+                            <p className="text-white font-medium">{planTypeLabel(inv.plan_type)}</p>
                             <p className="text-xs text-gray-500">{fmtDate(inv.start_date)} → {fmtDate(inv.end_date)}</p>
                           </div>
                           <span className={`text-xs px-2 py-1 rounded-full ${
@@ -259,6 +260,7 @@ export default function MemberDetailModal({
                       <thead>
                         <tr className="text-gray-500 border-b border-gray-800">
                           <th className="text-left py-2 px-2">Type</th>
+                          <th className="text-left py-2 px-2">From</th>
                           <th className="text-right py-2 px-2">Amount</th>
                           <th className="text-left py-2 px-2">Date</th>
                         </tr>
@@ -267,6 +269,9 @@ export default function MemberDetailModal({
                         {detail.income.map((tx) => (
                           <tr key={tx.id} className="border-b border-gray-800/50">
                             <td className="py-2 px-2 text-gray-300 capitalize">{tx.type.replace(/_/g, ' ')}</td>
+                            <td className="py-2 px-2 text-gray-400">
+                              {tx.type === 'roi' && tx.plan_type ? planTypeLabel(tx.plan_type) : '—'}
+                            </td>
                             <td className="py-2 px-2 text-right text-emerald-400 font-medium">{tx.amount.toFixed(2)} XIT</td>
                             <td className="py-2 px-2 text-gray-500">{fmtDateTime(tx.created_at)}</td>
                           </tr>

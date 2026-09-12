@@ -15,6 +15,7 @@ import { useWallet } from '@/context/WalletContext';
 import { useXitBalances } from '@/hooks/useXitBalances';
 import { sendXitTokens, shortenAddress } from '@/lib/web3';
 import type { Investment } from '@/types';
+import { isRoiHoldPlan, planTypeShortLabel } from '@/lib/constants';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
 
 export default function SellTokens() {
@@ -45,7 +46,7 @@ export default function SellTokens() {
       const sellableInv = (invData as Investment[]).filter(
         (i) =>
           i.status === 'active' ||
-          (i.status === 'completed' && i.plan_type === 'lock' && Number(i.sellable_amount) > 0),
+          (i.status === 'completed' && isRoiHoldPlan(i.plan_type) && Number(i.sellable_amount) > 0),
       );
       setInvestments(sellableInv);
       setSettings(settingsData as Record<string, string>);
@@ -324,9 +325,11 @@ export default function SellTokens() {
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                               inv.plan_type === 'lock'
                                 ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                                : 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                                : inv.plan_type === 'flexible_lock'
+                                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30'
+                                  : 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
                             }`}>
-                              {inv.plan_type === 'lock' ? 'Lock Plan' : 'Flexible 2X'}
+                              {planTypeShortLabel(inv.plan_type)}
                             </span>
                             {inv.income_eligible === false && (
                               <span className="text-[10px] text-gray-500 border border-gray-700 rounded-full px-2 py-0.5">ROI only</span>
@@ -420,8 +423,8 @@ export default function SellTokens() {
             <ul className="space-y-1.5 text-xs text-gray-400">
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />10% admin charge on every sale</li>
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Sell ROI/income from the top form, or sell from a specific investment card</li>
-              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Flexible plan: 80% sellable per investment</li>
-              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock plan: ROI locked until 3X complete — then sellable</li>
+              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Flexible: 80% sellable. 20% is Flexible Lock — not sellable until 4X / 1 year</li>
+              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock plan & Flexible Lock: ROI held until 4X complete — then sellable</li>
               {!isBlockchainMode && (
                 <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Demo mode: net USDT credited to your USDT wallet</li>
               )}

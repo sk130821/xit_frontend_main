@@ -18,9 +18,31 @@ export const PLAN_CONFIG = {
     dailyRoi: 0.53,
     sellablePercent: 80,
     lockedPercent: 20,
-    description: '80% sellable immediately, 20% locked for 1 year. 2X profit — 100 tokens becomes 300 total with 0.53% daily ROI.',
+    description: '80% sellable immediately. 20% becomes Flexible Lock for 1 year (0.82% daily, 4X, not sellable until complete). 0.53% daily ROI on the 80%.',
   },
 } as const;
+
+export function isRoiHoldPlan(planType: string) {
+  return planType === 'lock' || planType === 'flexible_lock';
+}
+
+export function planTypeLabel(planType: string) {
+  if (planType === 'lock') return 'Lock 3X → 400';
+  if (planType === 'flexible_lock') return 'Flexible Lock';
+  return 'Flexible 2X → 300';
+}
+
+export function planTypeShortLabel(planType: string) {
+  if (planType === 'lock') return 'Lock Plan';
+  if (planType === 'flexible_lock') return 'Flexible Lock';
+  return 'Flexible 2X';
+}
+
+export function planTypeBadgeClass(planType: string) {
+  if (planType === 'lock') return 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+  if (planType === 'flexible_lock') return 'bg-amber-500/20 text-amber-200 border border-amber-500/30';
+  return 'bg-blue-500/20 text-blue-300 border border-blue-500/30';
+}
 
 export function calcTotalReturn(amount: number, plan: typeof PLAN_CONFIG[keyof typeof PLAN_CONFIG]) {
   return amount * plan.totalMultiplier;

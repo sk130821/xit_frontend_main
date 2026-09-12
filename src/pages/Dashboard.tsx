@@ -11,14 +11,16 @@ import {
   Award,
   LayoutDashboard,
   ArrowRight,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useXitBalances } from '@/hooks/useXitBalances';
 import { useWallet } from '@/context/WalletContext';
-import type { Investment, Transaction, LevelBonusRate, ReferralNetworkMember, RewardStatus } from '@/types';
-import { TRANSACTION_LABELS, TRANSACTION_COLORS } from '@/lib/constants';
+import type { Investment, Transaction, LevelBonusRate, NetworkResponse, ReferralNetworkMember, RewardStatus } from '@/types';
+import { TRANSACTION_LABELS, TRANSACTION_COLORS, planTypeLabel, planTypeShortLabel, planTypeBadgeClass } from '@/lib/constants';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
 
 export default function Dashboard() {
@@ -52,10 +54,15 @@ export default function Dashboard() {
       setLevelBonusRates(ratesData as LevelBonusRate[]);
       setRewardStatus(rewardData as RewardStatus);
 
-      const network = networkData as ReferralNetworkMember[];
-      const directs = network.filter((m) => m.level === 1);
-      setReferralCount(directs.length);
-      setDirectVolume(directs.reduce((sum, m) => sum + Number(m.total_purchased || 0), 0));
+      const networkPayload = networkData as NetworkResponse | ReferralNetworkMember[];
+      const members = Array.isArray(networkPayload) ? networkPayload : (networkPayload.members || []);
+      const directs = members.filter((m) => m.level === 1);
+      setReferralCount(
+        !Array.isArray(networkPayload) && networkPayload.summary
+          ? Number(networkPayload.summary.direct_count || directs.length)
+          : directs.length
+      );
+      setDirectVolume(directs.reduce((sum, m) => sum + Number(m.total_purchased || m.self_business || 0), 0));
     } catch (err) {
       console.error('Dashboard load error:', err);
     }
@@ -70,6 +77,9 @@ export default function Dashboard() {
   };
 
   const activeInvestments = investments.filter((i) => i.status === 'active');
+  const flexiblePlan = sumPlanTokens(investments, 'flexible');
+  const lockPlan = sumPlanTokens(investments, 'lock');
+  const flexibleLockPlan = sumPlanTokens(investments, 'flexible_lock');
   const totalRoi = transactions.filter((t) => t.type === 'roi').reduce((s, t) => s + Number(t.amount), 0);
   const totalReferral = transactions.filter((t) => t.type === 'referral_bonus').reduce((s, t) => s + Number(t.amount), 0);
   const totalLevelBonus = transactions.filter((t) => t.type === 'level_bonus').reduce((s, t) => s + Number(t.amount), 0);
@@ -141,6 +151,33 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <PlanSplitCard
+          title="Flexible"
+          rate="0.53%"
+          tokens={flexiblePlan.tokens}
+          roi={flexiblePlan.roi}
+          accent="blue"
+          icon={Unlock}
+        />
+        <PlanSplitCard
+          title="Lock"
+          rate="0.82%"
+          tokens={lockPlan.tokens}
+          roi={lockPlan.roi}
+          accent="purple"
+          icon={Lock}
+        />
+        <PlanSplitCard
+          title="Flexible Lock"
+          rate="0.82%"
+          tokens={flexibleLockPlan.tokens}
+          roi={flexibleLockPlan.roi}
+          accent="amber"
+          icon={Lock}
+        />
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <IncomeCard label="ROI Income" value={totalRoi} color="green" />
         <IncomeCard label="Referral Bonus" value={totalReferral} color="cyan" />
@@ -201,10 +238,8 @@ export default function Dashboard() {
                   <div key={inv.id} className="bg-gray-900/50 rounded-xl p-4 border border-gray-800">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          inv.plan_type === 'lock' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'
-                        }`}>
-                          {inv.plan_type === 'lock' ? 'Lock 3X → 400' : 'Flex 2X → 300'}
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${planTypeBadgeClass(inv.plan_type)}`}>
+                          {planTypeLabel(inv.plan_type)}
                         </span>
                         <span className="text-sm text-white font-medium">{Number(inv.token_amount).toFixed(0)} XIT</span>
                       </div>
@@ -241,9 +276,15 @@ export default function Dashboard() {
               {transactions.slice(0, 6).map((tx) => (
                 <div key={tx.id} className="flex items-center justify-between py-2 border-b border-gray-800/50 last:border-0">
                   <div>
-                    <p className="text-sm text-white font-medium">{TRANSACTION_LABELS[tx.type] || tx.type}</p>
+                    <p className="text-sm text-white font-medium">
+                      {TRANSACTION_LABELS[tx.type] || tx.type}
+                      {tx.type === 'roi' && tx.plan_type ? ` · ${planTypeShortLabel(tx.plan_type)}` : ''}
+                    </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(tx.created_at).toLocaleDateString()} · {tx.description}
+                      {new Date(tx.created_at).toLocaleDateString()}
+                      {tx.type === 'roi' && tx.plan_type
+                        ? ` · ${planTypeLabel(tx.plan_type)}`
+                        : tx.description ? ` · ${tx.description}` : ''}
                     </p>
                   </div>
                   <span className={`text-sm font-semibold ${TRANSACTION_COLORS[tx.type] || 'text-gray-400'}`}>
@@ -273,6 +314,58 @@ export default function Dashboard() {
         <MiniStat label="Direct Team Purchase Volume" value={`${directVolume.toFixed(2)} XIT`} icon={Users} />
         <MiniStat label="Total Income (All Types)" value={`${(totalRoi + totalReferral + totalLevelBonus + totalRewardBonus).toFixed(2)} XIT`} icon={Gift} />
       </div>
+    </div>
+  );
+}
+
+function sumPlanTokens(list: Investment[], planType: Investment['plan_type']) {
+  const rows = list.filter((i) => i.plan_type === planType && i.status !== 'cancelled');
+  return {
+    tokens: rows.reduce((s, i) => s + Number(i.token_amount || 0), 0),
+    roi: rows.reduce((s, i) => s + Number(i.roi_received || 0), 0),
+  };
+}
+
+function PlanSplitCard({
+  title,
+  rate,
+  tokens,
+  roi,
+  accent,
+  icon: Icon,
+}: {
+  title: string;
+  rate: string;
+  tokens: number;
+  roi: number;
+  accent: 'blue' | 'purple' | 'amber';
+  icon: typeof Lock;
+}) {
+  const styles = {
+    blue: 'border-blue-500/25 from-blue-600/15 text-blue-300',
+    purple: 'border-purple-500/25 from-purple-600/15 text-purple-300',
+    amber: 'border-amber-500/25 from-amber-600/15 text-amber-200',
+  };
+  return (
+    <div className={`rounded-2xl border bg-gradient-to-br to-[#111827] p-5 ${styles[accent]}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm font-semibold text-white">{title}</p>
+          <p className="text-[11px] text-gray-500">Daily ROI {rate}</p>
+        </div>
+        <Icon className="w-5 h-5 opacity-80" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">Tokens</p>
+          <p className="text-xl font-bold text-white tabular-nums">{tokens.toFixed(2)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-gray-500">ROI earned</p>
+          <p className={`text-xl font-bold tabular-nums ${styles[accent].split(' ').pop()}`}>{roi.toFixed(2)}</p>
+        </div>
+      </div>
+      <p className="text-[11px] text-gray-500 mt-3">Together { (tokens + roi).toFixed(2) } XIT</p>
     </div>
   );
 }

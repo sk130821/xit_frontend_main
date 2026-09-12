@@ -15,6 +15,18 @@ export interface XitBalanceView {
   refresh: () => Promise<void>;
 }
 
+function roundXit(n: number) {
+  return Math.round((Number(n) || 0) * 1e8) / 1e8;
+}
+
+function onChainSellableView(onChain: number, planSellable: number, planLocked: number, lockRoiHeld: number) {
+  const afterHold = Math.max(0, onChain - planLocked - lockRoiHeld);
+  return {
+    income: roundXit(Math.max(0, afterHold - planSellable)),
+    total: roundXit(Math.min(onChain, afterHold)),
+  };
+}
+
 export function useXitBalances(): XitBalanceView {
   const { user } = useAuth();
   const { config, connectedAddress, isBlockchainMode } = useWallet();
@@ -69,30 +81,29 @@ export function useXitBalances(): XitBalanceView {
           config.rpcUrl,
           config.tokenDecimals || 18,
         );
-        const sellable = demoSellable;
-        const locked = demoLocked;
-        const income = Math.max(0, onChain - locked - lockRoiHeld);
-        const sellTotal = Math.min(onChain, sellable + income);
-
+        const view = onChainSellableView(onChain, demoSellable, demoLocked, lockRoiHeld);
         setWalletTotal(onChain);
-        setPlanSellable(sellable);
-        setPlanLocked(locked);
-        setIncomeBalance(income);
-        setTotalSellable(sellTotal);
-      } else {
-        setWalletTotal(user.on_chain_xit_balance ?? 0);
         setPlanSellable(demoSellable);
         setPlanLocked(demoLocked);
-        setIncomeBalance(0);
-        setTotalSellable(user.total_sellable ?? demoSellable);
+        setIncomeBalance(view.income);
+        setTotalSellable(view.total);
+      } else {
+        const fallback = user.on_chain_xit_balance ?? 0;
+        const view = onChainSellableView(fallback, demoSellable, demoLocked, lockRoiHeld);
+        setWalletTotal(fallback);
+        setPlanSellable(demoSellable);
+        setPlanLocked(demoLocked);
+        setIncomeBalance(view.income);
+        setTotalSellable(user.total_sellable ?? view.total);
       }
     } catch {
       const fallback = user.on_chain_xit_balance ?? 0;
+      const view = onChainSellableView(fallback, demoSellable, demoLocked, lockRoiHeld);
       setWalletTotal(fallback);
       setPlanSellable(demoSellable);
       setPlanLocked(demoLocked);
-      setIncomeBalance(Math.max(0, fallback - demoLocked - lockRoiHeld));
-      setTotalSellable(user.total_sellable ?? demoSellable);
+      setIncomeBalance(view.income);
+      setTotalSellable(user.total_sellable ?? view.total);
     } finally {
       setLoading(false);
     }
