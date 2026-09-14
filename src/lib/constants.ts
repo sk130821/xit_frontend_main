@@ -59,6 +59,7 @@ export const TRANSACTION_LABELS: Record<string, string> = {
   commission: 'Commission',
   admin_credit: 'Admin Credit',
   admin_debit: 'Admin Debit',
+  admin_grant: 'Admin XIT Grant',
   withdraw: 'Withdrawal',
 };
 
@@ -73,6 +74,7 @@ export const TRANSACTION_COLORS: Record<string, string> = {
   commission: 'text-cyan-400',
   admin_credit: 'text-emerald-400',
   admin_debit: 'text-red-400',
+  admin_grant: 'text-orange-400',
   withdraw: 'text-yellow-400',
 };
 

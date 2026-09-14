@@ -8,6 +8,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Coins,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { AdminMemberDetail } from '@/types';
@@ -43,6 +44,9 @@ export default function MemberDetailModal({
   const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordModal, setPasswordModal] = useState(false);
+  const [grantModal, setGrantModal] = useState(false);
+  const [grantAmount, setGrantAmount] = useState('');
+  const [grantNote, setGrantNote] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   if (!detail && !loading) return null;
@@ -71,6 +75,32 @@ export default function MemberDetailModal({
       api.setToken(data.token);
       window.open('/dashboard', '_blank');
       onMessage({ type: 'success', text: `Logged in as ${user.username} (new tab)` });
+    } catch (err: any) {
+      onMessage({ type: 'error', text: err.message });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleGrantXit = async () => {
+    if (!user) return;
+    const amount = Number(grantAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      onMessage({ type: 'error', text: 'Enter a valid XIT amount' });
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const result: any = await api.admin.grantXit(user.id, amount, grantNote.trim() || undefined);
+      let text = `Granted ${Number(result.amount).toFixed(2)} XIT to ${result.username}. Member can sell for USDT.`;
+      if (result.chainMode && result.txHash) {
+        text += ` On-chain tx: ${String(result.txHash).slice(0, 10)}…`;
+      }
+      onMessage({ type: 'success', text });
+      setGrantModal(false);
+      setGrantAmount('');
+      setGrantNote('');
+      onRefresh();
     } catch (err: any) {
       onMessage({ type: 'error', text: err.message });
     } finally {
@@ -173,6 +203,13 @@ export default function MemberDetailModal({
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-sm font-medium disabled:opacity-50"
                 >
                   <KeyRound className="w-4 h-4" /> Change Password
+                </button>
+                <button
+                  onClick={() => setGrantModal(true)}
+                  disabled={actionLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-sm font-medium disabled:opacity-50"
+                >
+                  <Coins className="w-4 h-4" /> Grant XIT (sellable)
                 </button>
               </div>
             </div>
@@ -323,6 +360,59 @@ export default function MemberDetailModal({
           </>
         )}
       </div>
+
+      {grantModal && user && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-[#111827] border border-gray-800 rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-1">Grant XIT tokens</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Send XIT to <span className="text-white">{user.username}</span> with no USDT payment. Member can sell on the Sell page.
+              {user.wallet_address ? (
+                <span className="block mt-1 font-mono text-[10px] text-cyan-500/80 truncate">{user.wallet_address}</span>
+              ) : (
+                <span className="block mt-1 text-amber-400/90 text-xs">Blockchain mode: member must link MetaMask first.</span>
+              )}
+            </p>
+            <label className="text-xs text-gray-500 uppercase tracking-wider">Amount (XIT)</label>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={grantAmount}
+              onChange={(e) => setGrantAmount(e.target.value)}
+              placeholder="e.g. 100"
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 mb-3 mt-1"
+            />
+            <label className="text-xs text-gray-500 uppercase tracking-wider">Note (optional)</label>
+            <input
+              type="text"
+              value={grantNote}
+              onChange={(e) => setGrantNote(e.target.value)}
+              placeholder="e.g. Refund failed sell"
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 mb-4 mt-1"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setGrantModal(false);
+                  setGrantAmount('');
+                  setGrantNote('');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGrantXit}
+                disabled={actionLoading || !grantAmount || Number(grantAmount) <= 0}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 text-black text-sm font-medium disabled:opacity-50"
+              >
+                {actionLoading ? 'Sending…' : 'Grant XIT'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {passwordModal && user && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">

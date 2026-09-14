@@ -188,6 +188,11 @@ export const api = {
     rewardTiers: () => adminRequest('/admin/reward-tiers'),
     creditDebit: (targetId: number, amount: number, action: string) =>
       adminRequest('/admin/credit-debit', { method: 'POST', body: JSON.stringify({ targetId, amount, action }) }),
+    grantXit: (targetId: number, amount: number, note?: string) =>
+      adminRequest('/admin/grant-xit', {
+        method: 'POST',
+        body: JSON.stringify({ targetId, amount, note: note || undefined }),
+      }),
     toggleActivation: (targetId: number, activate: boolean) =>
       adminRequest('/admin/toggle-activation', { method: 'POST', body: JSON.stringify({ targetId, activate }) }),
     updateLevelBonus: (level: number, percentage: number) =>
@@ -226,6 +231,11 @@ export const api = {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return adminRequest(`/admin/trades/daily${qs}`);
     },
+    pendingSellOrders: () => adminRequest('/admin/sell-orders/pending'),
+    retrySellOrder: (id: number) =>
+      adminRequest(`/admin/sell-orders/${id}/retry`, { method: 'POST' }),
+    retryAllSellOrders: () =>
+      adminRequest('/admin/sell-orders/retry-all', { method: 'POST' }),
     businessReport: (params?: Record<string, string>) => {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
       return adminRequest(`/admin/reports/business${qs}`);

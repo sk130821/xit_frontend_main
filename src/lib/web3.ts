@@ -161,6 +161,74 @@ export async function sendPayment(
   return receipt!.hash;
 }
 
+/** Minimum BNB required in the member wallet before any sell XIT transfer. */
+export const MIN_SELL_BNB = 0.001;
+
+export function sellGasError(haveBnb: number, needBnb = MIN_SELL_BNB) {
+  return (
+    `Insufficient BNB for gas. You have ${haveBnb.toFixed(6)} BNB, need at least ${needBnb} BNB in this wallet. ` +
+    `Add BNB first — sell is blocked so XIT will not be sent.`
+  );
+}
+
+/** Live BNB balance of the connected MetaMask account. */
+export async function getWalletBnbBalance(): Promise<number> {
+  if (!window.ethereum) throw new Error('MetaMask not installed');
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const address = await signer.getAddress();
+  const balance = await provider.getBalance(address);
+  return parseFloat(ethers.formatEther(balance));
+}
+
+/**
+ * Hard-stop before MetaMask popup: estimate transfer gas and require enough BNB.
+ * Does not send any transaction.
+ */
+export async function assertCanPaySellGas(
+  adminWallet: string,
+  tokenAmount: string,
+  xitContractAddress: string,
+  tokenDecimals: number,
+): Promise<{ bnb: number; required: number }> {
+  if (!window.ethereum) throw new Error('MetaMask not installed');
+  if (!xitContractAddress) throw new Error('XIT contract address not configured');
+
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const from = await signer.getAddress();
+  const contract = new ethers.Contract(xitContractAddress, ERC20_ABI, signer);
+  const amountWei = ethers.parseUnits(tokenAmount, tokenDecimals);
+  const balance = await provider.getBalance(from);
+
+  let gasLimit = 65000n;
+  try {
+    gasLimit = await contract.transfer.estimateGas(adminWallet, amountWei);
+  } catch (err: any) {
+    const msg = String(err?.shortMessage || err?.message || '');
+    if (/insufficient funds|gas/i.test(msg)) {
+      throw new Error(sellGasError(parseFloat(ethers.formatEther(balance))));
+    }
+  }
+
+  const fee = await provider.getFeeData();
+  const gasPrice = fee.gasPrice || fee.maxFeePerGas || ethers.parseUnits('5', 'gwei');
+  const estimated = gasLimit * gasPrice * 2n;
+  const floor = ethers.parseEther(String(MIN_SELL_BNB));
+  const required = estimated > floor ? estimated : floor;
+
+  if (balance < required) {
+    throw new Error(
+      sellGasError(parseFloat(ethers.formatEther(balance)), parseFloat(ethers.formatEther(required)))
+    );
+  }
+
+  return {
+    bnb: parseFloat(ethers.formatEther(balance)),
+    required: parseFloat(ethers.formatEther(required)),
+  };
+}
+
 /** Send XIT tokens from user wallet to admin pool (sell). */
 export async function sendXitTokens(
   adminWallet: string,
@@ -170,6 +238,8 @@ export async function sendXitTokens(
 ): Promise<string> {
   if (!window.ethereum) throw new Error('MetaMask not installed');
   if (!xitContractAddress) throw new Error('XIT contract address not configured');
+
+  await assertCanPaySellGas(adminWallet, tokenAmount, xitContractAddress, tokenDecimals);
 
   const provider = new ethers.BrowserProvider(window.ethereum);
   const signer = await provider.getSigner();

@@ -13,7 +13,13 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useWallet } from '@/context/WalletContext';
 import { useXitBalances } from '@/hooks/useXitBalances';
-import { sendXitTokens, shortenAddress } from '@/lib/web3';
+import {
+  MIN_SELL_BNB,
+  assertCanPaySellGas,
+  getWalletBnbBalance,
+  sendXitTokens,
+  shortenAddress,
+} from '@/lib/web3';
 import type { Investment } from '@/types';
 import { isRoiHoldPlan, planTypeShortLabel } from '@/lib/constants';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
@@ -32,10 +38,34 @@ export default function SellTokens() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [sellingInvestment, setSellingInvestment] = useState<Investment | null>(null);
   const [invSellAmount, setInvSellAmount] = useState('');
+  const [bnbBalance, setBnbBalance] = useState<number | null>(null);
+  const [bnbLoading, setBnbLoading] = useState(false);
 
   useEffect(() => {
     if (user) loadData();
   }, [user]);
+
+  const refreshBnb = async () => {
+    if (!isBlockchainMode || !connectedAddress || !window.ethereum) {
+      setBnbBalance(null);
+      return;
+    }
+    setBnbLoading(true);
+    try {
+      const bal = await getWalletBnbBalance();
+      setBnbBalance(bal);
+    } catch {
+      setBnbBalance(null);
+    } finally {
+      setBnbLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshBnb();
+  }, [isBlockchainMode, connectedAddress]);
+
+  const hasSellGas = !isBlockchainMode || (bnbBalance !== null && bnbBalance >= MIN_SELL_BNB);
 
   const loadData = async () => {
     try {
@@ -111,32 +141,66 @@ export default function SellTokens() {
         setError('Admin wallet not configured. Contact admin.');
         return;
       }
+      if (!hasSellGas) {
+        setError(
+          `Add at least ${MIN_SELL_BNB} BNB to this wallet for gas. Sell is blocked so your XIT will not be sent.`,
+        );
+        return;
+      }
     }
 
     setLoading(true);
     try {
       let result: any;
       if (isBlockchainMode) {
+        const adminWallet = config!.adminPayoutWallet || config!.adminTreasuryWallet!;
+        await assertCanPaySellGas(
+          adminWallet,
+          sellAmt.toFixed(8),
+          config!.bep20ContractAddress,
+          config!.tokenDecimals || 18,
+        );
+        await refreshBnb();
+
         await api.investments.sellPreflight(sellAmt, investmentId);
 
-        const adminWallet = config!.adminPayoutWallet || config!.adminTreasuryWallet!;
         const tokenTxHash = await sendXitTokens(
           adminWallet,
           sellAmt.toFixed(8),
           config!.bep20ContractAddress,
           config!.tokenDecimals || 18,
         );
-        result = await api.investments.sell(sellAmt, tokenTxHash, investmentId);
+        try {
+          result = await api.investments.sell(sellAmt, tokenTxHash, investmentId);
+        } catch (sellErr: any) {
+          try {
+            result = await api.investments.sell(sellAmt, tokenTxHash, investmentId);
+          } catch {
+            throw new Error(
+              `XIT was sent (${tokenTxHash.slice(0, 10)}...). If ${paymentSymbol} does not arrive, contact admin with this hash. ${sellErr.message || ''}`,
+            );
+          }
+        }
       } else {
         result = await api.investments.sell(sellAmt, undefined, investmentId);
+      }
+
+      if (result.tokenReturnTxHash && config?.blockExplorerUrl) {
+        setTxExplorerUrl(`${config.blockExplorerUrl}/tx/${result.tokenReturnTxHash}`);
+      }
+
+      if (result.payoutPending) {
+        setSuccess(
+          result.message ||
+            `XIT received. ${result.paymentSymbol || paymentSymbol} payout is pending and will be retried automatically.`,
+        );
+        await loadData();
+        return;
       }
 
       const symbol = result.paymentSymbol || (isBlockchainMode ? paymentSymbol : 'USDT');
       let msg = `Sold ${Number(result.sold).toFixed(2)} XIT. Admin charge: ${Number(result.adminCharge).toFixed(2)} XIT (${adminChargePercent}%).`;
       msg += ` You received ${Number(result.usdtReceived).toFixed(4)} ${symbol}.`;
-      if (result.tokenReturnTxHash && config?.blockExplorerUrl) {
-        setTxExplorerUrl(`${config.blockExplorerUrl}/tx/${result.tokenReturnTxHash}`);
-      }
       if (result.explorerUrl) {
         msg += ' Payment sent to your wallet on-chain.';
       }
@@ -145,6 +209,7 @@ export default function SellTokens() {
       return;
     } catch (err: any) {
       setError(err.message || 'Failed to sell tokens');
+      if (isBlockchainMode) await refreshBnb();
     } finally {
       setLoading(false);
     }
@@ -176,6 +241,28 @@ export default function SellTokens() {
         </div>
       )}
 
+      {isBlockchainMode && connectedAddress && (
+        <div className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm border ${
+          hasSellGas
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+            : 'bg-red-500/10 border-red-500/30 text-red-400'
+        }`}>
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {bnbLoading ? (
+            <span>Checking BNB gas balance…</span>
+          ) : bnbBalance === null ? (
+            <span>Could not read BNB. Connect MetaMask on BSC — sell stays blocked until gas is confirmed.</span>
+          ) : hasSellGas ? (
+            <span>Gas OK — wallet has {bnbBalance.toFixed(6)} BNB (minimum {MIN_SELL_BNB} BNB).</span>
+          ) : (
+            <span>
+              Sell blocked — wallet has {bnbBalance.toFixed(6)} BNB. Add at least {MIN_SELL_BNB} BNB for gas.
+              XIT will not be sent until then.
+            </span>
+          )}
+        </div>
+      )}
+
       {isBlockchainMode && !connectedAddress && (
         <div className="flex items-center justify-between bg-orange-500/10 border border-orange-500/30 rounded-xl px-4 py-3">
           <div className="flex items-center gap-2 text-orange-400 text-sm">
@@ -201,7 +288,7 @@ export default function SellTokens() {
             {success}
             {txExplorerUrl && (
               <a href={txExplorerUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-cyan-400 mt-1 hover:underline">
-                View payout on Explorer <ExternalLink className="w-3 h-3" />
+                View XIT transfer on Explorer <ExternalLink className="w-3 h-3" />
               </a>
             )}
           </div>
@@ -223,6 +310,7 @@ export default function SellTokens() {
           {isBlockchainMode && connectedAddress && config && (
             <div className="bg-gray-900/50 rounded-xl p-3 mb-4 text-xs text-gray-400 space-y-1">
               <p>Your wallet: <span className="text-emerald-400 font-mono">{shortenAddress(connectedAddress)}</span></p>
+              <p>BNB for gas: <span className={hasSellGas ? 'text-emerald-400' : 'text-red-400'}>{bnbLoading ? '…' : bnbBalance === null ? '—' : `${bnbBalance.toFixed(6)} BNB`}</span> <span className="text-gray-600">(min {MIN_SELL_BNB})</span></p>
               <p>Send XIT to: <span className="text-orange-400 font-mono">{shortenAddress(config.adminPayoutWallet || config.adminTreasuryWallet || '')}</span></p>
             </div>
           )}
@@ -285,7 +373,7 @@ export default function SellTokens() {
 
             <button
               onClick={() => handleSell()}
-              disabled={loading || !user?.is_active || sellAmount <= 0 || sellAmount > totalSellable || (isBlockchainMode && !connectedAddress)}
+              disabled={loading || !user?.is_active || sellAmount <= 0 || sellAmount > totalSellable || (isBlockchainMode && !connectedAddress) || (isBlockchainMode && !hasSellGas)}
               className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
@@ -363,7 +451,7 @@ export default function SellTokens() {
                                 setInvSellAmount('');
                                 setError('');
                               }}
-                              disabled={loading || !user?.is_active || (isBlockchainMode && !connectedAddress)}
+                              disabled={loading || !user?.is_active || (isBlockchainMode && !connectedAddress) || (isBlockchainMode && !hasSellGas)}
                               className="w-full text-sm font-medium py-2 rounded-lg bg-orange-500/15 border border-orange-500/30 text-orange-300 hover:bg-orange-500/25 transition-colors disabled:opacity-50"
                             >
                               Sell from this investment
@@ -391,7 +479,7 @@ export default function SellTokens() {
                                 <button
                                   type="button"
                                   onClick={() => handleSell({ investmentId: inv.id, amount: invAmount })}
-                                  disabled={loading || invAmount <= 0 || invAmount > sellable || (isBlockchainMode && !connectedAddress)}
+                                  disabled={loading || invAmount <= 0 || invAmount > sellable || (isBlockchainMode && !connectedAddress) || (isBlockchainMode && !hasSellGas)}
                                   className="flex-1 text-sm font-medium py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white disabled:opacity-50"
                                 >
                                   {loading ? 'Selling...' : `Sell ${invAmount > 0 ? invAmount : ''}`}
@@ -424,12 +512,13 @@ export default function SellTokens() {
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />10% admin charge on every sale</li>
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Sell ROI/income from the top form, or sell from a specific investment card</li>
               <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Flexible: 80% sellable. 20% is Flexible Lock — not sellable until 4X / 1 year</li>
-              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock plan & Flexible Lock: ROI held until 4X complete — then sellable</li>
+              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Lock & Flexible Lock ROI: not in sellable until 4X complete and lock period (1 year) ends</li>
+              <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Selling Flexible principal reduces future ROI on the remaining amount only</li>
               {!isBlockchainMode && (
                 <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Demo mode: net USDT credited to your USDT wallet</li>
               )}
               {isBlockchainMode && (
-                <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Blockchain: send XIT from MetaMask to admin, receive {paymentSymbol} back</li>
+                <li className="flex items-start gap-2"><Check className="w-3 h-3 text-orange-400 mt-0.5 flex-shrink-0" />Blockchain: wallet must have at least {MIN_SELL_BNB} BNB for gas, then send XIT and receive {paymentSymbol} back</li>
               )}
             </ul>
           </div>

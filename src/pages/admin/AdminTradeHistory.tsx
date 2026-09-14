@@ -44,8 +44,27 @@ interface DailyTrade {
   net: number;
 }
 
+interface PendingSell {
+  id: number;
+  user_id: number;
+  username: string;
+  email: string;
+  wallet_address: string | null;
+  token_amount: number;
+  usdt_payout: number;
+  payment_symbol: string;
+  xit_tx_hash: string;
+  payout_tx_hash: string | null;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
 export default function AdminTradeHistory() {
-  const [tab, setTab] = useState<'history' | 'daily'>('daily');
+  const [tab, setTab] = useState<'history' | 'daily' | 'pending'>('daily');
+  const [pendingSells, setPendingSells] = useState<PendingSell[]>([]);
+  const [retryingId, setRetryingId] = useState<number | 'all' | null>(null);
+  const [pendingError, setPendingError] = useState('');
   const [items, setItems] = useState<TradeItem[]>([]);
   const [daily, setDaily] = useState<DailyTrade[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -78,12 +97,32 @@ export default function AdminTradeHistory() {
     setPage(p);
   };
 
+  const loadPending = async () => {
+    const data: any = await api.admin.pendingSellOrders();
+    setPendingSells(data.items || []);
+  };
+
   const loadAll = async () => {
     setLoading(true);
+    setPendingError('');
     try {
-      await Promise.all([loadDaily(), loadHistory()]);
+      await Promise.all([loadDaily(), loadHistory(), loadPending()]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetrySell = async (id?: number) => {
+    setRetryingId(id ?? 'all');
+    setPendingError('');
+    try {
+      if (id) await api.admin.retrySellOrder(id);
+      else await api.admin.retryAllSellOrders();
+      await loadPending();
+    } catch (err: any) {
+      setPendingError(err.message || 'Retry failed');
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -95,6 +134,7 @@ export default function AdminTradeHistory() {
     setLoading(true);
     try {
       if (tab === 'daily') await loadDaily();
+      else if (tab === 'pending') await loadPending();
       else await loadHistory(1);
     } finally {
       setLoading(false);
@@ -157,22 +197,27 @@ export default function AdminTradeHistory() {
         </div>
       )}
 
-      <div className="flex gap-2">
-        {(['daily', 'history'] as const).map((t) => (
+      <div className="flex gap-2 flex-wrap">
+        {([
+          { id: 'daily', label: 'Daily Summary' },
+          { id: 'history', label: 'All Transactions' },
+          { id: 'pending', label: `Pending USDT (${pendingSells.length})` },
+        ] as const).map((t) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={t.id}
+            onClick={() => setTab(t.id)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              tab === t
+              tab === t.id
                 ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
                 : 'border border-gray-800 text-gray-500 hover:text-gray-300'
             }`}
           >
-            {t === 'daily' ? 'Daily Summary' : 'All Transactions'}
+            {t.label}
           </button>
         ))}
       </div>
 
+      {tab !== 'pending' && (
       <AdminFilterBar>
         <AdminFilterField label="Type">
           <AdminSelect value={type} onChange={(e) => setType(e.target.value)}>
@@ -207,9 +252,73 @@ export default function AdminTradeHistory() {
           Apply Filter
         </button>
       </AdminFilterBar>
+      )}
+
+      {pendingError && (
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">{pendingError}</div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-emerald-400 animate-spin" /></div>
+      ) : tab === 'pending' ? (
+        <div className="bg-[#111827] border border-gray-800 rounded-3xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <p className="text-sm text-gray-400">XIT received, USDT not paid yet. Retry after topping up admin USDT/BNB.</p>
+            <button
+              onClick={() => handleRetrySell()}
+              disabled={retryingId !== null || pendingSells.length === 0}
+              className="px-3 py-1.5 rounded-lg bg-orange-500/20 border border-orange-500/30 text-orange-300 text-xs font-medium hover:bg-orange-500/30 disabled:opacity-50"
+            >
+              {retryingId === 'all' ? 'Retrying…' : 'Retry all'}
+            </button>
+          </div>
+          {pendingSells.length === 0 ? (
+            <div className="text-center py-16 text-gray-500 text-sm">No pending sell payouts</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-800">
+                    <th className="text-left text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">Date</th>
+                    <th className="text-left text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">Member</th>
+                    <th className="text-right text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">XIT</th>
+                    <th className="text-right text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">USDT due</th>
+                    <th className="text-left text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">Status</th>
+                    <th className="text-left text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">Error</th>
+                    <th className="text-right text-[10px] uppercase tracking-wider text-gray-500 px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingSells.map((row) => (
+                    <tr key={row.id} className="border-b border-gray-800/40 hover:bg-gray-900/30">
+                      <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{fmtDateTime(row.created_at)}</td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-white font-medium">{row.username}</p>
+                        <p className="text-[10px] text-gray-500 truncate max-w-[140px]">{row.email}</p>
+                        <p className="text-[10px] text-cyan-500/80 font-mono truncate max-w-[160px]">{row.xit_tx_hash}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-orange-400 tabular-nums">{fmtNum(row.token_amount)}</td>
+                      <td className="px-4 py-3 text-right text-sm font-semibold text-emerald-400 tabular-nums">{fmtNum(row.usdt_payout)}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 uppercase">{row.status.replace('_', ' ')}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-red-400/80 max-w-[220px] truncate">{row.error_message || '—'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleRetrySell(row.id)}
+                          disabled={retryingId !== null}
+                          className="px-3 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/30 disabled:opacity-50"
+                        >
+                          {retryingId === row.id ? 'Retrying…' : 'Retry USDT'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       ) : tab === 'daily' ? (
         <div className="bg-[#111827] border border-gray-800 rounded-3xl overflow-hidden">
           {daily.length === 0 ? (

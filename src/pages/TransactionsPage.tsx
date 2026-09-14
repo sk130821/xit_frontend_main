@@ -25,6 +25,7 @@ const TYPE_FILTERS = [
   { id: 'reward_bonus', label: 'Reward Bonus' },
   { id: 'admin_credit', label: 'Admin Credit' },
   { id: 'admin_debit', label: 'Admin Debit' },
+  { id: 'admin_grant', label: 'Admin XIT Grant' },
 ] as const;
 
 const INCOME_FILTERS = [
@@ -295,6 +296,12 @@ export default function TransactionsPage() {
                             ? `${planTypeLabel(tx.plan_type)}${tx.investment_token_amount ? ` · ${Number(tx.investment_token_amount).toFixed(0)} XIT` : ''}`
                             : tx.description || '-'}
                         </span>
+                        {tx.type === 'sell' && tx.on_chain_status === 'pending' && (
+                          <p className="text-[11px] text-amber-400 mt-0.5">USDT payout pending — will be retried</p>
+                        )}
+                        {tx.type === 'sell' && tx.on_chain_status === 'failed' && (
+                          <p className="text-[11px] text-red-400 mt-0.5">USDT payout failed — admin will retry</p>
+                        )}
                         {tx.type === 'roi' && tx.plan_type && (
                           <p className="text-[11px] text-gray-600 mt-0.5">{planTypeShortLabel(tx.plan_type)}</p>
                         )}
