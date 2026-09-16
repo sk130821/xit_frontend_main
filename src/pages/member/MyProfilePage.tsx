@@ -30,7 +30,7 @@ export default function MyProfilePage() {
   const [copied, setCopied] = useState(false);
 
   const usdtWallet = Number(user?.wallet_balance || 0);
-  const xitBalance = isBlockchainMode ? balances.walletTotal : balances.incomeBalance;
+  const xitBalance = isBlockchainMode ? balances.totalSellable : balances.incomeBalance;
   const earned = Number(user?.total_earned || 0);
   const invested = Number(user?.total_invested || 0);
   const purchased = Number(user?.total_purchased || 0);
@@ -122,7 +122,7 @@ export default function MyProfilePage() {
         )}
         <StatCard
           icon={Coins}
-          label={isBlockchainMode ? 'Wallet XIT' : 'Free XIT'}
+          label={isBlockchainMode ? 'Sellable XIT' : 'Free XIT'}
           value={xitBalance}
           suffix="XIT"
           accent="text-orange-400"

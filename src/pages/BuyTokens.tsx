@@ -272,8 +272,8 @@ export default function BuyTokens() {
               accent={isBlockchainMode ? 'orange' : 'emerald'}
             />
             <ModeBadge
-              label={isBlockchainMode ? `${balances.walletTotal.toFixed(0)} XIT` : `${Number(user?.wallet_balance || 0).toFixed(0)} USDT`}
-              sub={isBlockchainMode ? 'Wallet balance' : 'Your USDT wallet'}
+              label={isBlockchainMode ? `${balances.totalSellable.toFixed(0)} XIT` : `${Number(user?.wallet_balance || 0).toFixed(0)} USDT`}
+              sub={isBlockchainMode ? 'Sellable balance' : 'Your USDT wallet'}
               accent={isBlockchainMode ? 'orange' : 'emerald'}
             />
             {!isBlockchainMode && (

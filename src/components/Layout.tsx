@@ -230,9 +230,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </span>
               )}
               <span className="block sm:inline text-orange-400 font-semibold truncate">
-                {isBlockchainMode
-                  ? `${balances.walletTotal.toFixed(2)} XIT wallet · ${balances.totalSellable.toFixed(2)} sellable`
-                  : `${balances.totalSellable.toFixed(2)} XIT sellable`}
+                {`${balances.totalSellable.toFixed(2)} XIT sellable`}
               </span>
             </div>
           </div>

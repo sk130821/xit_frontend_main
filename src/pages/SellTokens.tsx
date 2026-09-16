@@ -97,7 +97,6 @@ export default function SellTokens() {
   const sellableFromInvestments = balances.planSellable;
   const totalSellable = balances.totalSellable;
   const incomeBalance = balances.incomeBalance;
-  const walletXit = balances.walletTotal;
 
   const handleSell = async (opts?: { investmentId?: number; amount?: number }) => {
     setError('');
@@ -322,8 +321,8 @@ export default function SellTokens() {
             {isBlockchainMode ? (
               <>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 flex items-center gap-2"><Wallet className="w-4 h-4 text-orange-400" /> Wallet XIT (on-chain)</span>
-                  <span className="text-white font-medium">{walletXit.toFixed(2)} XIT</span>
+                  <span className="text-gray-400 flex items-center gap-2"><Wallet className="w-4 h-4 text-orange-400" /> Total sellable</span>
+                  <span className="text-white font-medium">{totalSellable.toFixed(2)} XIT</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400 flex items-center gap-2"><TrendingDown className="w-4 h-4 text-emerald-400" /> ROI & Income (sellable)</span>

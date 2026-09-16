@@ -30,8 +30,8 @@ export default function MyTokensPage() {
   const purchased = Number(user?.total_purchased || 0);
   const earned = Number(user?.total_earned || 0);
   const usdtWallet = Number(user?.wallet_balance || 0);
-  const { walletTotal, planLocked, planSellable, incomeBalance } = balances;
-  const currentTotal = walletTotal;
+  const { walletTotal, planLocked, planSellable, incomeBalance, totalSellable } = balances;
+  const currentTotal = isBlockchainMode ? totalSellable : walletTotal;
 
   const planSum = (type: Investment['plan_type']) => {
     const rows = investments.filter((i) => i.plan_type === type && i.status !== 'cancelled');
@@ -68,9 +68,11 @@ export default function MyTokensPage() {
                 <Coins className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80 font-medium">Current XIT Holdings</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80 font-medium">
+                  {isBlockchainMode ? 'Total Sellable' : 'XIT Overview'}
+                </p>
                 <p className="text-gray-500 text-xs">
-                  {isBlockchainMode ? 'Wallet balance (on-chain)' : 'Free XIT + sellable + locked in plans'}
+                  {isBlockchainMode ? 'Amount you can sell now' : 'Free XIT + sellable + locked in plans'}
                 </p>
               </div>
               <Sparkles className="w-4 h-4 text-amber-400/60 ml-auto hidden sm:block" />
@@ -136,9 +138,9 @@ export default function MyTokensPage() {
             </div>
             {isBlockchainMode ? (
               <>
-                <p className="text-gray-400 text-sm mb-1">Linked wallet XIT</p>
+                <p className="text-gray-400 text-sm mb-1">Sellable XIT</p>
                 <p className="text-3xl sm:text-4xl font-bold text-white tabular-nums mb-1">
-                  {walletTotal.toFixed(2)}
+                  {totalSellable.toFixed(2)}
                   <span className="text-orange-400 text-xl ml-2 font-semibold">XIT</span>
                 </p>
                 <p className="text-gray-500 text-xs font-mono break-all">{user?.wallet_address || 'Not connected'}</p>

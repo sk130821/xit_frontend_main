@@ -103,10 +103,11 @@ export default function Dashboard() {
           {!isBlockchainMode && (
             <HeroStat label="USDT Wallet" value={`${Number(user?.wallet_balance || 0).toFixed(0)} USDT`} accent />
           )}
-          <HeroStat label="XIT Holdings" value={`${balances.walletTotal.toFixed(0)} XIT`} accent={isBlockchainMode} />
-          {isBlockchainMode && (
-            <HeroStat label="Sellable" value={`${balances.totalSellable.toFixed(0)} XIT`} />
-          )}
+          <HeroStat
+            label="Sellable"
+            value={`${balances.totalSellable.toFixed(0)} XIT`}
+            accent={isBlockchainMode}
+          />
         </div>
       </PageHero>
 
@@ -128,8 +129,8 @@ export default function Dashboard() {
           <StatCard label="USDT Wallet" value={Number(user?.wallet_balance || 0).toFixed(2)} suffix="USDT" icon={Wallet} color="emerald" />
         )}
         <StatCard
-          label={isBlockchainMode ? 'Wallet XIT' : 'Free XIT'}
-          value={isBlockchainMode ? balances.walletTotal.toFixed(2) : balances.incomeBalance.toFixed(2)}
+          label={isBlockchainMode ? 'Sellable XIT' : 'Free XIT'}
+          value={isBlockchainMode ? balances.totalSellable.toFixed(2) : balances.incomeBalance.toFixed(2)}
           suffix="XIT"
           icon={TrendingUp}
           color="blue"

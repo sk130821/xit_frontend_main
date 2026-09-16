@@ -19,14 +19,6 @@ function roundXit(n: number) {
   return Math.round((Number(n) || 0) * 1e8) / 1e8;
 }
 
-function onChainSellableView(onChain: number, planSellable: number, planLocked: number, lockRoiHeld: number) {
-  const afterHold = Math.max(0, onChain - planLocked - lockRoiHeld);
-  return {
-    income: roundXit(Math.max(0, afterHold - planSellable)),
-    total: roundXit(Math.min(onChain, afterHold)),
-  };
-}
-
 export function useXitBalances(): XitBalanceView {
   const { user } = useAuth();
   const { config, connectedAddress, isBlockchainMode } = useWallet();
@@ -51,7 +43,7 @@ export function useXitBalances(): XitBalanceView {
       setPlanSellable(demoSellable);
       setPlanLocked(demoLocked);
       setIncomeBalance(demoIncomeSellable);
-      setTotalSellable(demoSellable + demoIncomeSellable);
+      setTotalSellable(user.total_sellable ?? demoSellable);
       return;
     }
 
@@ -81,29 +73,26 @@ export function useXitBalances(): XitBalanceView {
           config.rpcUrl,
           config.tokenDecimals || 18,
         );
-        const view = onChainSellableView(onChain, demoSellable, demoLocked, lockRoiHeld);
         setWalletTotal(onChain);
         setPlanSellable(demoSellable);
         setPlanLocked(demoLocked);
-        setIncomeBalance(view.income);
-        setTotalSellable(view.total);
+        setIncomeBalance(0);
+        setTotalSellable(user.total_sellable ?? demoSellable);
       } else {
         const fallback = user.on_chain_xit_balance ?? 0;
-        const view = onChainSellableView(fallback, demoSellable, demoLocked, lockRoiHeld);
         setWalletTotal(fallback);
         setPlanSellable(demoSellable);
         setPlanLocked(demoLocked);
-        setIncomeBalance(view.income);
-        setTotalSellable(user.total_sellable ?? view.total);
+        setIncomeBalance(0);
+        setTotalSellable(user.total_sellable ?? demoSellable);
       }
     } catch {
       const fallback = user.on_chain_xit_balance ?? 0;
-      const view = onChainSellableView(fallback, demoSellable, demoLocked, lockRoiHeld);
       setWalletTotal(fallback);
       setPlanSellable(demoSellable);
       setPlanLocked(demoLocked);
-      setIncomeBalance(view.income);
-      setTotalSellable(user.total_sellable ?? view.total);
+      setIncomeBalance(0);
+      setTotalSellable(user.total_sellable ?? demoSellable);
     } finally {
       setLoading(false);
     }

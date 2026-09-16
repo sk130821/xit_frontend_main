@@ -97,7 +97,7 @@ export default function MemberDetailModal({
       const result: any = await api.admin.grantXit(user.id, amount, {
         note: grantNote.trim() || undefined,
         compensationKind: grantKind,
-        refTxHash: grantRefTx.trim() || undefined,
+        refTxHash: grantKind === 'buy_failed' ? grantRefTx.trim() || undefined : undefined,
         planType: grantKind === 'buy_failed' ? grantPlan : undefined,
       });
       let text: string;
@@ -114,14 +114,15 @@ export default function MemberDetailModal({
           text += ' Account activated.';
         }
       } else {
-        text = `Sell failed: restored ${Number(result.planRestored ?? result.amount).toFixed(2)} XIT to flexible/plan sellable for ${result.username}.`;
-        if (result.walletRestored > 0) {
-          text += ` Wallet (demo): +${Number(result.walletRestored).toFixed(2)}.`;
-        }
+        text = `Sell failed: Flexible/plan +${Number(result.planRestored ?? result.amount).toFixed(2)} XIT for ${result.username}.`;
         if (result.onChainReturned > 0) {
-          text += ` On-chain return: ${Number(result.onChainReturned).toFixed(2)} XIT.`;
-        } else if (result.chainMode) {
-          text += ' No on-chain send (add sell XIT tx hash if member wallet is short).';
+          text += ` Wallet/Sellable +${Number(result.onChainReturned).toFixed(2)} on-chain.`;
+        }
+        if (result.walletRestored > 0) {
+          text += ` Demo wallet +${Number(result.walletRestored).toFixed(2)}.`;
+        }
+        if (result.sellOrderAutoLinked && result.sellOrderId) {
+          text += ` Linked pending sell #${result.sellOrderId}.`;
         }
         if (result.investmentId) {
           text += ` Investment #${result.investmentId}.`;
@@ -425,9 +426,10 @@ export default function MemberDetailModal({
                 </>
               ) : (
                 <>
-                  Restore <span className="text-white">{user.username}</span> flexible/plan <strong className="text-white font-medium">sellable</strong>{' '}
-                  (Flexible card + sell rules). Wallet par blind credit nahi. Sell ki{' '}
-                  <span className="text-cyan-400/90">XIT tx hash</span> daalo agar chain par tokens wapas bhejne hon.
+                  Failed sell fix for <span className="text-white">{user.username}</span>:{' '}
+                  <span className="text-emerald-400/90">Flexible</span> plan restore + chain mode me{' '}
+                  <span className="text-emerald-400/90">Sellable</span> (wallet XIT return). Pending sell auto-link — tx hash
+                  not needed.
                 </>
               )}
               {user.wallet_address ? (
@@ -450,7 +452,7 @@ export default function MemberDetailModal({
                 <p>
                   Plan locked: {user.sell_balance.planLocked.toFixed(2)} XIT
                   {grantKind === 'sell_failed'
-                    ? ' (sell failed: plan sellable restore — hash se on-chain return)'
+                    ? ' (after: Flexible + Sellable dono badhenge chain mode me)'
                     : ' (buy failed se badhega agar lock/flex lock)'}
                 </p>
               </div>
@@ -526,16 +528,18 @@ export default function MemberDetailModal({
               placeholder="e.g. 80"
               className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 mb-3 mt-1"
             />
-            <label className="text-xs text-gray-500 uppercase tracking-wider">
-              {grantKind === 'sell_failed' ? 'Sell XIT tx hash (recommended)' : 'Related tx hash (optional)'}
-            </label>
-            <input
-              type="text"
-              value={grantRefTx}
-              onChange={(e) => setGrantRefTx(e.target.value)}
-              placeholder={grantKind === 'sell_failed' ? '0x… member sell XIT transfer' : '0x… sell or buy hash'}
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm font-mono outline-none focus:border-orange-500 mb-3 mt-1"
-            />
+            {grantKind === 'buy_failed' && (
+              <>
+                <label className="text-xs text-gray-500 uppercase tracking-wider">Related tx hash (optional)</label>
+                <input
+                  type="text"
+                  value={grantRefTx}
+                  onChange={(e) => setGrantRefTx(e.target.value)}
+                  placeholder="0x… USDT buy hash"
+                  className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm font-mono outline-none focus:border-orange-500 mb-3 mt-1"
+                />
+              </>
+            )}
             <label className="text-xs text-gray-500 uppercase tracking-wider">Note (optional)</label>
             <input
               type="text"
