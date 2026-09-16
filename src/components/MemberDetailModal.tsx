@@ -47,6 +47,9 @@ export default function MemberDetailModal({
   const [grantModal, setGrantModal] = useState(false);
   const [grantAmount, setGrantAmount] = useState('');
   const [grantNote, setGrantNote] = useState('');
+  const [grantRefTx, setGrantRefTx] = useState('');
+  const [grantKind, setGrantKind] = useState<'sell_failed' | 'buy_failed'>('sell_failed');
+  const [grantPlan, setGrantPlan] = useState<'lock' | 'flexible'>('flexible');
   const [actionLoading, setActionLoading] = useState(false);
 
   if (!detail && !loading) return null;
@@ -91,15 +94,47 @@ export default function MemberDetailModal({
     }
     setActionLoading(true);
     try {
-      const result: any = await api.admin.grantXit(user.id, amount, grantNote.trim() || undefined);
-      let text = `Granted ${Number(result.amount).toFixed(2)} XIT to ${result.username}. Member can sell for USDT.`;
+      const result: any = await api.admin.grantXit(user.id, amount, {
+        note: grantNote.trim() || undefined,
+        compensationKind: grantKind,
+        refTxHash: grantRefTx.trim() || undefined,
+        planType: grantKind === 'buy_failed' ? grantPlan : undefined,
+      });
+      let text: string;
+      if (grantKind === 'buy_failed') {
+        const planLabel = grantPlan === 'flexible' ? 'Flexible (80% sellable + 20% lock)' : 'Lock (100% locked)';
+        text = `Buy failed: ${Number(result.amount).toFixed(2)} XIT — ${planLabel}. Same as purchase, no USDT from admin.`;
+        if (result.investment?.sellable != null && grantPlan === 'flexible') {
+          text += ` Plan sellable ${Number(result.investment.sellable).toFixed(2)}, locked ${Number(result.investment.locked || 0).toFixed(2)}.`;
+        }
+        if (result.referralBonus > 0) {
+          text += ` Referral bonus: ${Number(result.referralBonus).toFixed(2)} XIT.`;
+        }
+        if (result.accountActivated) {
+          text += ' Account activated.';
+        }
+      } else {
+        text = `Sell failed: restored ${Number(result.planRestored ?? result.amount).toFixed(2)} XIT to flexible/plan sellable for ${result.username}.`;
+        if (result.walletRestored > 0) {
+          text += ` Wallet (demo): +${Number(result.walletRestored).toFixed(2)}.`;
+        }
+        if (result.onChainReturned > 0) {
+          text += ` On-chain return: ${Number(result.onChainReturned).toFixed(2)} XIT.`;
+        } else if (result.chainMode) {
+          text += ' No on-chain send (add sell XIT tx hash if member wallet is short).';
+        }
+        if (result.investmentId) {
+          text += ` Investment #${result.investmentId}.`;
+        }
+      }
       if (result.chainMode && result.txHash) {
-        text += ` On-chain tx: ${String(result.txHash).slice(0, 10)}…`;
+        text += ` Tx: ${String(result.txHash).slice(0, 10)}…`;
       }
       onMessage({ type: 'success', text });
       setGrantModal(false);
       setGrantAmount('');
       setGrantNote('');
+      setGrantRefTx('');
       onRefresh();
     } catch (err: any) {
       onMessage({ type: 'error', text: err.message });
@@ -209,7 +244,7 @@ export default function MemberDetailModal({
                   disabled={actionLoading}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-sm font-medium disabled:opacity-50"
                 >
-                  <Coins className="w-4 h-4" /> Grant XIT (sellable)
+                  <Coins className="w-4 h-4" /> Send XIT (Compensation)
                 </button>
               </div>
             </div>
@@ -257,6 +292,21 @@ export default function MemberDetailModal({
                       <Row label="Total Earned" value={`${user.total_earned.toFixed(2)} XIT`} />
                       <Row label="Direct Referrals" value={String(user.direct_count)} />
                     </dl>
+                    {user.sell_balance && (
+                      <div className="mt-4 pt-4 border-t border-gray-800">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Sell limits (member view)</h4>
+                        <dl className="space-y-1.5 text-sm">
+                          {user.sell_balance.chainMode && user.sell_balance.onChainXit != null && (
+                            <Row label="Wallet XIT (chain)" value={`${user.sell_balance.onChainXit.toFixed(2)} XIT`} />
+                          )}
+                          <Row label="Income sellable" value={`${user.sell_balance.incomeSellable.toFixed(2)} XIT`} accent />
+                          <Row label="Plan sellable" value={`${user.sell_balance.planSellable.toFixed(2)} XIT`} />
+                          <Row label="Plan locked (hold)" value={`${user.sell_balance.planLocked.toFixed(2)} XIT`} />
+                          <Row label="Lock ROI held" value={`${user.sell_balance.lockRoiHeld.toFixed(2)} XIT`} />
+                          <Row label="Total sellable" value={`${user.sell_balance.totalSellable.toFixed(2)} XIT`} accent />
+                        </dl>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -277,8 +327,10 @@ export default function MemberDetailModal({
                             inv.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-700 text-gray-400'
                           }`}>{inv.status}</span>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 mt-3 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3 text-sm">
                           <div><p className="text-gray-500 text-xs">Amount</p><p className="text-white">{inv.token_amount} XIT</p></div>
+                          <div><p className="text-gray-500 text-xs">Sellable</p><p className="text-emerald-400">{inv.sellable_amount} XIT</p></div>
+                          <div><p className="text-gray-500 text-xs">Locked</p><p className="text-amber-400/90">{inv.locked_amount} XIT</p></div>
                           <div><p className="text-gray-500 text-xs">ROI Received</p><p className="text-emerald-400">{inv.roi_received} XIT</p></div>
                           <div><p className="text-gray-500 text-xs">Total Return</p><p className="text-orange-400">{inv.total_return} XIT</p></div>
                         </div>
@@ -363,16 +415,107 @@ export default function MemberDetailModal({
 
       {grantModal && user && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-[#111827] border border-gray-800 rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-semibold text-white mb-1">Grant XIT tokens</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Send XIT to <span className="text-white">{user.username}</span> with no USDT payment. Member can sell on the Sell page.
+          <div className="bg-[#111827] border border-gray-800 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-white mb-1">Send XIT (Compensation)</h3>
+            <p className="text-sm text-gray-400 mb-3">
+              {grantKind === 'buy_failed' ? (
+                <>
+                  Complete purchase for <span className="text-white">{user.username}</span> — select plan + amount (member
+                  buy jaisa). Admin se USDT nahi jayega; chain mode me XIT wallet par jayega + plan rows banenge.
+                </>
+              ) : (
+                <>
+                  Restore <span className="text-white">{user.username}</span> flexible/plan <strong className="text-white font-medium">sellable</strong>{' '}
+                  (Flexible card + sell rules). Wallet par blind credit nahi. Sell ki{' '}
+                  <span className="text-cyan-400/90">XIT tx hash</span> daalo agar chain par tokens wapas bhejne hon.
+                </>
+              )}
               {user.wallet_address ? (
                 <span className="block mt-1 font-mono text-[10px] text-cyan-500/80 truncate">{user.wallet_address}</span>
+              ) : grantKind === 'buy_failed' ? (
+                <span className="block mt-1 text-amber-400/90 text-xs">
+                  Blockchain mode: wallet link zaroori hai XIT bhejne ke liye.
+                </span>
               ) : (
                 <span className="block mt-1 text-amber-400/90 text-xs">Blockchain mode: member must link MetaMask first.</span>
               )}
             </p>
+
+            {user.sell_balance && (
+              <div className="bg-gray-900/60 border border-gray-800 rounded-xl p-3 mb-4 text-xs text-gray-400 space-y-1">
+                <p>
+                  Total sellable now:{' '}
+                  <span className="text-emerald-400 font-medium">{user.sell_balance.totalSellable.toFixed(2)} XIT</span>
+                </p>
+                <p>
+                  Plan locked: {user.sell_balance.planLocked.toFixed(2)} XIT
+                  {grantKind === 'sell_failed'
+                    ? ' (sell failed: plan sellable restore — hash se on-chain return)'
+                    : ' (buy failed se badhega agar lock/flex lock)'}
+                </p>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Reason</p>
+            <div className="flex flex-col gap-2 mb-4">
+              <label className="flex items-start gap-2 cursor-pointer rounded-xl border border-gray-700 px-3 py-2.5 has-[:checked]:border-orange-500/50 has-[:checked]:bg-orange-500/5">
+                <input
+                  type="radio"
+                  name="grantKind"
+                  checked={grantKind === 'sell_failed'}
+                  onChange={() => setGrantKind('sell_failed')}
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-300">
+                  <span className="text-white font-medium">Sell failed</span> — XIT sent, USDT not received
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer rounded-xl border border-gray-700 px-3 py-2.5 has-[:checked]:border-orange-500/50 has-[:checked]:bg-orange-500/5">
+                <input
+                  type="radio"
+                  name="grantKind"
+                  checked={grantKind === 'buy_failed'}
+                  onChange={() => setGrantKind('buy_failed')}
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-300">
+                  <span className="text-white font-medium">Buy failed</span> — USDT paid, XIT not received
+                </span>
+              </label>
+            </div>
+
+            {grantKind === 'buy_failed' && (
+              <>
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Plan (same as member buy)</p>
+                <div className="flex flex-col gap-2 mb-4">
+                  <label className="flex items-start gap-2 cursor-pointer rounded-xl border border-gray-700 px-3 py-2.5 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/5">
+                    <input
+                      type="radio"
+                      name="grantPlan"
+                      checked={grantPlan === 'flexible'}
+                      onChange={() => setGrantPlan('flexible')}
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-300">
+                      <span className="text-white font-medium">Flexible</span> — 80% sellable + 20% flexible lock
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer rounded-xl border border-gray-700 px-3 py-2.5 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/5">
+                    <input
+                      type="radio"
+                      name="grantPlan"
+                      checked={grantPlan === 'lock'}
+                      onChange={() => setGrantPlan('lock')}
+                      className="mt-1"
+                    />
+                    <span className="text-sm text-gray-300">
+                      <span className="text-white font-medium">Lock</span> — 100% locked until plan completes
+                    </span>
+                  </label>
+                </div>
+              </>
+            )}
+
             <label className="text-xs text-gray-500 uppercase tracking-wider">Amount (XIT)</label>
             <input
               type="number"
@@ -380,15 +523,25 @@ export default function MemberDetailModal({
               step="any"
               value={grantAmount}
               onChange={(e) => setGrantAmount(e.target.value)}
-              placeholder="e.g. 100"
+              placeholder="e.g. 80"
               className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 mb-3 mt-1"
+            />
+            <label className="text-xs text-gray-500 uppercase tracking-wider">
+              {grantKind === 'sell_failed' ? 'Sell XIT tx hash (recommended)' : 'Related tx hash (optional)'}
+            </label>
+            <input
+              type="text"
+              value={grantRefTx}
+              onChange={(e) => setGrantRefTx(e.target.value)}
+              placeholder={grantKind === 'sell_failed' ? '0x… member sell XIT transfer' : '0x… sell or buy hash'}
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm font-mono outline-none focus:border-orange-500 mb-3 mt-1"
             />
             <label className="text-xs text-gray-500 uppercase tracking-wider">Note (optional)</label>
             <input
               type="text"
               value={grantNote}
               onChange={(e) => setGrantNote(e.target.value)}
-              placeholder="e.g. Refund failed sell"
+              placeholder="Internal note"
               className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-orange-500 mb-4 mt-1"
             />
             <div className="flex gap-3">
@@ -397,6 +550,7 @@ export default function MemberDetailModal({
                   setGrantModal(false);
                   setGrantAmount('');
                   setGrantNote('');
+                  setGrantRefTx('');
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-gray-800 text-gray-300 text-sm"
               >
@@ -407,7 +561,7 @@ export default function MemberDetailModal({
                 disabled={actionLoading || !grantAmount || Number(grantAmount) <= 0}
                 className="flex-1 py-2.5 rounded-xl bg-orange-500 text-black text-sm font-medium disabled:opacity-50"
               >
-                {actionLoading ? 'Sending…' : 'Grant XIT'}
+                {actionLoading ? 'Processing…' : grantKind === 'buy_failed' ? 'Complete buy (no USDT)' : 'Send XIT'}
               </button>
             </div>
           </div>

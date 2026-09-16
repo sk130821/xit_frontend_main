@@ -73,16 +73,28 @@ export default function AdminPayout() {
 
     setLoading(true);
     setError('');
+    const controller = new AbortController();
+    const timeoutMs = 180_000;
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const data = await api.admin.payoutPreview(useDemoDate ? effectiveDate : undefined);
+      const data = await api.admin.payoutPreview(useDemoDate ? effectiveDate : undefined, {
+        signal: controller.signal,
+      });
       const previewData = data as PreviewData;
       setPreview(previewData);
       if (previewData.demoMode !== undefined) {
         setDemoMode(!!previewData.demoMode);
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load preview');
+      if (err?.name === 'AbortError') {
+        setError(
+          `Preview took longer than ${timeoutMs / 60_000} minutes. Deploy latest backend (preview wallet cache v8), restart Node, then Refresh — or use Debug ROI first.`
+        );
+      } else {
+        setError(err.message || 'Failed to load preview');
+      }
     } finally {
+      window.clearTimeout(timer);
       setLoading(false);
     }
   };
@@ -304,8 +316,11 @@ export default function AdminPayout() {
       )}
 
       {loading && !preview ? (
-        <div className="flex justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center px-4">
           <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+          <p className="text-sm text-gray-400 max-w-md">
+            Loading payout preview… On live (real) mode the server checks wallet balances once per member — first load can take 30–90 seconds after the fix; without the update it may never finish.
+          </p>
         </div>
       ) : preview && (
         <>

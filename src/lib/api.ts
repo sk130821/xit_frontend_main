@@ -188,10 +188,28 @@ export const api = {
     rewardTiers: () => adminRequest('/admin/reward-tiers'),
     creditDebit: (targetId: number, amount: number, action: string) =>
       adminRequest('/admin/credit-debit', { method: 'POST', body: JSON.stringify({ targetId, amount, action }) }),
-    grantXit: (targetId: number, amount: number, note?: string) =>
+    grantXit: (
+      targetId: number,
+      amount: number,
+      options?: {
+        note?: string;
+        compensationKind?: 'sell_failed' | 'buy_failed' | 'general';
+        refTxHash?: string;
+        planType?: 'lock' | 'flexible';
+        investmentId?: number;
+      }
+    ) =>
       adminRequest('/admin/grant-xit', {
         method: 'POST',
-        body: JSON.stringify({ targetId, amount, note: note || undefined }),
+        body: JSON.stringify({
+          targetId,
+          amount,
+          note: options?.note || undefined,
+          compensationKind: options?.compensationKind || 'general',
+          refTxHash: options?.refTxHash || undefined,
+          planType: options?.planType || undefined,
+          investmentId: options?.investmentId || undefined,
+        }),
       }),
     toggleActivation: (targetId: number, activate: boolean) =>
       adminRequest('/admin/toggle-activation', { method: 'POST', body: JSON.stringify({ targetId, activate }) }),
@@ -202,9 +220,9 @@ export const api = {
     updateSetting: (key: string, value: string) =>
       adminRequest('/admin/update-setting', { method: 'POST', body: JSON.stringify({ key, value }) }),
     blockchainStatus: () => adminRequest('/blockchain/admin-status'),
-    payoutPreview: (date?: string) => {
+    payoutPreview: (date?: string, init?: RequestInit) => {
       const qs = date ? `?date=${encodeURIComponent(date)}` : '';
-      return adminRequest(`/admin/payout/preview${qs}`);
+      return adminRequest(`/admin/payout/preview${qs}`, init);
     },
     payoutDebug: (date?: string) => {
       const qs = date ? `?date=${encodeURIComponent(date)}` : '';

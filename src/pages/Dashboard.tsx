@@ -14,7 +14,7 @@ import {
   Lock,
   Unlock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useXitBalances } from '@/hooks/useXitBalances';
@@ -27,6 +27,9 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { isBlockchainMode } = useWallet();
   const balances = useXitBalances();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [flash, setFlash] = useState('');
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [levelBonusRates, setLevelBonusRates] = useState<LevelBonusRate[]>([]);
@@ -38,6 +41,14 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) loadData();
   }, [user]);
+
+  useEffect(() => {
+    const msg = (location.state as { flash?: string } | null)?.flash;
+    if (msg) {
+      setFlash(msg);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   const loadData = async () => {
     try {
@@ -98,6 +109,13 @@ export default function Dashboard() {
           )}
         </div>
       </PageHero>
+
+      {flash && (
+        <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl px-4 py-3 text-sm">
+          <Check className="w-4 h-4 flex-shrink-0" />
+          {flash}
+        </div>
+      )}
 
       {!user?.is_active && (
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-xl px-4 py-3 text-sm">

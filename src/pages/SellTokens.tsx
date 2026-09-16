@@ -25,7 +25,7 @@ import { isRoiHoldPlan, planTypeShortLabel } from '@/lib/constants';
 import { PageHero, HeroStat } from '@/components/member/MemberUI';
 
 export default function SellTokens() {
-  const { user, signOut } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { config, connectedAddress, isBlockchainMode, connect, connecting } = useWallet();
   const balances = useXitBalances();
@@ -173,11 +173,12 @@ export default function SellTokens() {
         try {
           result = await api.investments.sell(sellAmt, tokenTxHash, investmentId);
         } catch (sellErr: any) {
+          // XIT already on-chain — retry API only (no second MetaMask send)
           try {
             result = await api.investments.sell(sellAmt, tokenTxHash, investmentId);
-          } catch {
+          } catch (retryErr: any) {
             throw new Error(
-              `XIT was sent (${tokenTxHash.slice(0, 10)}...). If ${paymentSymbol} does not arrive, contact admin with this hash. ${sellErr.message || ''}`,
+              `XIT was sent (${tokenTxHash.slice(0, 10)}…). Try Refresh and submit again with support, or contact admin with full hash: ${tokenTxHash}. ${retryErr.message || sellErr.message || ''}`,
             );
           }
         }
@@ -189,23 +190,25 @@ export default function SellTokens() {
         setTxExplorerUrl(`${config.blockExplorerUrl}/tx/${result.tokenReturnTxHash}`);
       }
 
-      if (result.payoutPending) {
-        setSuccess(
-          result.message ||
-            `XIT received. ${result.paymentSymbol || paymentSymbol} payout is pending and will be retried automatically.`,
-        );
-        await loadData();
-        return;
-      }
-
       const symbol = result.paymentSymbol || (isBlockchainMode ? paymentSymbol : 'USDT');
-      let msg = `Sold ${Number(result.sold).toFixed(2)} XIT. Admin charge: ${Number(result.adminCharge).toFixed(2)} XIT (${adminChargePercent}%).`;
-      msg += ` You received ${Number(result.usdtReceived).toFixed(4)} ${symbol}.`;
-      if (result.explorerUrl) {
-        msg += ' Payment sent to your wallet on-chain.';
+      let msg: string;
+      if (result.payoutPending) {
+        msg =
+          result.message ||
+          `XIT received. ${symbol} payout is pending and will be retried automatically.`;
+      } else {
+        msg = `Sold ${Number(result.sold).toFixed(2)} XIT. Admin charge: ${Number(result.adminCharge).toFixed(2)} XIT (${adminChargePercent}%).`;
+        msg += ` You received ${Number(result.usdtReceived).toFixed(4)} ${symbol}.`;
+        if (result.explorerUrl) {
+          msg += ' Payment sent to your wallet on-chain.';
+        }
       }
-      signOut();
-      navigate('/login', { replace: true, state: { flash: msg } });
+      setAmount('');
+      setInvSellAmount('');
+      setSellingInvestment(null);
+      await Promise.all([loadData(), refreshUser(), balances.refresh()]);
+      if (isBlockchainMode) await refreshBnb();
+      navigate('/dashboard', { replace: true, state: { flash: msg } });
       return;
     } catch (err: any) {
       setError(err.message || 'Failed to sell tokens');

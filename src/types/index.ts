@@ -193,10 +193,21 @@ export interface AdminUsersResponse {
   users: AdminUser[];
 }
 
+export interface AdminMemberSellBalance {
+  chainMode: boolean;
+  onChainXit: number | null;
+  planSellable: number;
+  planLocked: number;
+  lockRoiHeld: number;
+  incomeSellable: number;
+  totalSellable: number;
+}
+
 export interface AdminMemberDetail {
   user: AdminUser & {
     buy_tx_count: number;
     total_income: number;
+    sell_balance?: AdminMemberSellBalance;
   };
   investments: Investment[];
   income: Transaction[];
